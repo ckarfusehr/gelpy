@@ -70,10 +70,13 @@ class FitModel(ABC):
             # Define the lower and upper bounds for the parameters
             lower_bounds = [0] * len(initial_guess)
             upper_bounds = [np.inf] * len(initial_guess)
-            # Fix the mean values during fitting to the previously detected maxima +-1 # kinda breaking the emg fitting, as mean does not have to be maxima.
-            for i, max_index in enumerate(maxima_indices):
-                lower_bounds[i*self.params_per_peak()+1] = max_index -1
-                upper_bounds[i*self.params_per_peak()+1] = max_index +1
+            
+            # Fix the mean values during fitting to the previously detected maxima +-1
+                # kinda breaking the emg fitting, as there mean is not equal to the maxima maxima.
+            if self.fit_type == "gaussian":
+                for i, max_index in enumerate(maxima_indices):
+                    lower_bounds[i*self.params_per_peak()+1] = max_index -1
+                    upper_bounds[i*self.params_per_peak()+1] = max_index +1
             bounds = (lower_bounds, upper_bounds)
             print(f"initial_guess: {initial_guess}\nlower_bounds{lower_bounds}\nupper_bounds{upper_bounds}")
 

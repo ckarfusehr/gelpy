@@ -29,7 +29,6 @@
 ### Fix bugs
 
 * gaussian plotting error
-* For the EMG function, the fitted mean should not be restricted so tightly to the maxima index, as for strong skewedness, the mean of the EMG is not at it's maxima.
 
 ### Write real README file on how to use the package
 

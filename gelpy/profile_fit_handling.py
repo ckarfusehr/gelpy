@@ -47,13 +47,13 @@ class LineFits:
             axs[i, 1].plot(x, self.fit_model.linear_background_function(x, optimized_parameters[-2], optimized_parameters[-1]), color='black')
             axs[i, 1].set_title(f'Fitted Peaks - {selected_label}')
 
-            # Remove the y-axis label and ticks of the right plots
-            axs[i, 1].set_ylabel('')
-            axs[i, 1].yaxis.set_tick_params(left=False, labelleft=False)
-
             # Plot the original normalized_line_profile in the right subplot
             axs[i, 1].plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.5)
             axs[i, 1].set_xlabel('Pixel')
+            
+            # Remove the y-axis label and ticks of the right plots
+            axs[i, 1].set_ylabel('')
+            axs[i, 1].yaxis.set_tick_params(left=False, labelleft=False)
 
             # Create x-axis ticks on the top of the plot, at the median of each gaussian
             axs[i, 1].xaxis.set_ticks_position('top')
