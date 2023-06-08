@@ -1,3 +1,10 @@
+# package stuff
+gelpy.egg-info
+gelpy.egg-info/*
+PKG-INFO
+requires.txt
+SOURCES.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
