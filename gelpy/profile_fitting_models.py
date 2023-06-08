@@ -99,11 +99,10 @@ class FitModel(ABC):
                 total_area += area
 
             # Calculate parameter of each peak and create a new row for each peak
-            for j in range(0, len(params) - 2, self.params_per_peak()):  # Exclude the last two parameters for the linear background
+            for band_number, j in enumerate(range(0, len(params) - 2, self.params_per_peak())):  # Exclude the last two parameters for the linear background
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start, end)
                 relative_area = area / total_area
                 maxima_position = self.find_single_peak_maxima(*params[j:j+self.params_per_peak()])
-                band_number = j+1
                 peak_data = [selected_lane_index, label, band_number, relative_area, maxima_position, *params[j:j+self.params_per_peak()]]
                 data.append(peak_data)
 

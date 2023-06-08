@@ -28,8 +28,6 @@
 
 ### Fix bugs
 
-* Fix naming of band numbers. Seems arbitrary at the moment (in df)
-
 ### Write real README file on how to use the package
 
 ### Modernize package structure to use requirements.txt file.
