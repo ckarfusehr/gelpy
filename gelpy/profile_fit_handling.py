@@ -36,10 +36,11 @@ class LineFits:
 
             # Plot the sum of all peaks fitted for this line profile in the left subplot
             axs[i, 0].plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
-
+            
             # Plot all the peaks fitted for this line profile in the right subplot
             for j in range(0, len(optimized_parameters) - 2, self.fit_model.params_per_peak()):  # Exclude the last two parameters for the linear background
                 optimized_parameters_structured = optimized_parameters[j:j+self.fit_model.params_per_peak()]
+                print(f"opt_params_for_ind_plot: {optimized_parameters_structured}")
                 axs[i, 1].plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured)
                             + self.fit_model.linear_background_function(x, optimized_parameters[-2], optimized_parameters[-1]), label=f'Band {j//3 + 1}')
                 median_values = [optimized_parameters[j+1] for j in range(0, len(optimized_parameters) - 2, self.fit_model.params_per_peak())]  # Exclude the last two parameters for the linear background
@@ -55,7 +56,7 @@ class LineFits:
             axs[i, 1].set_ylabel('')
             axs[i, 1].yaxis.set_tick_params(left=False, labelleft=False)
 
-            # Create x-axis ticks on the top of the plot, at the median of each gaussian
+            # Create x-axis ticks on the top of the plot, at the median of each fit
             axs[i, 1].xaxis.set_ticks_position('top')
             axs[i, 1].xaxis.set_label_position('top')
             axs[i, 1].set_xticks(median_values)

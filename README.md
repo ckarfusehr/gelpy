@@ -28,7 +28,8 @@
 
 ### Fix bugs
 
-* gaussian plotting error
+* The peak labelling in the lineplot plots currently places the labels at the mean value, which is not the maxima for EMG peak If strongly shifted, the labels for RMG peaks are at the "wrong" positions.
+* Fix naming of band numbers. Seems arbitrary at the moment (in df)
 
 ### Write real README file on how to use the package
 

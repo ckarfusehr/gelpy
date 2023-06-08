@@ -14,10 +14,6 @@ class FitModel(ABC):
         self.fit_df = None
 
     @abstractmethod
-    def peak_function(self, x, *params):
-        pass
-
-    @abstractmethod
     def single_peak_function(self, x, *params):
         pass
 
@@ -33,7 +29,7 @@ class FitModel(ABC):
         x = x.astype(np.float64)
         result = np.zeros_like(x)
         for i in range(0, len(params) - 2, self.params_per_peak()):
-            result += self.peak_function(x, *params[i:i+self.params_per_peak()])
+            result += self.single_peak_function(x, *params[i:i+self.params_per_peak()])
         result += self.linear_background_function(x, params[-2], params[-1])
         return result
 
@@ -120,11 +116,8 @@ class GaussianFitModel(FitModel):
         super().__init__()
         self.fit_type = "gaussian"
 
-    def peak_function(self, x, amplitude, mean, stddev):
-        return (amplitude * np.exp(-((x - mean) ** 2) / (2 * (stddev ** 2)))).astype(np.float64)
-
     def single_peak_function(self, x, amplitude, mean, stddev):
-        return norm.pdf(x, loc=mean, scale=stddev) * amplitude
+        return (amplitude * np.exp(-((x - mean) ** 2) / (2 * (stddev ** 2)))).astype(np.float64)
 
     def peak_area(self, amplitude, mean, stddev, start, end):
         x = np.arange(start, end)
@@ -146,19 +139,16 @@ class EmgFitModel(FitModel):
     def __init__(self):
         super().__init__()
         self.fit_type="emg"
-
-    def peak_function(self, x, amplitude, mean, stddev, lambda_): # x sign inverted to get left leaning emg
-        term1 = (x - mean) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
-        term2 = (mean - x) / stddev - stddev / lambda_
-        return (amplitude / lambda_ * np.exp(term1) * norm.cdf(term2)).astype(np.float64)
     
-    # def peak_function(self, x, amplitude, mean, stddev, lambda_): # standard emg
+    # def single_peak_function(self, x, amplitude, mean, stddev, lambda_): # standard emg
     #     term1 = (mean - x) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
     #     term2 = (x - mean) / stddev - stddev / lambda_
     #     return (amplitude / lambda_ * np.exp(term1) * norm.cdf(term2)).astype(np.float64)
 
     def single_peak_function(self, x, amplitude, mean, stddev, lambda_):
-        return self.peak_function(x, amplitude, mean, stddev, lambda_)
+        term1 = (x - mean) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
+        term2 = (mean - x) / stddev - stddev / lambda_
+        return (amplitude / lambda_ * np.exp(term1) * norm.cdf(term2)).astype(np.float64)
 
     def peak_area(self, amplitude, mean, stddev, lambda_, start, end):
         x = np.linspace(start, end, 1000)
