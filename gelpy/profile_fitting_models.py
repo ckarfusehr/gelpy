@@ -144,7 +144,7 @@ class EmgFitModel(FitModel):
         super().__init__()
         self.fit_type="emg"
 
-    def peak_function(x, amplitude, mean, stddev, lambda_): # x sign inverted to get left leaning emg
+    def peak_function(self, x, amplitude, mean, stddev, lambda_): # x sign inverted to get left leaning emg
         term1 = (x - mean) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
         term2 = (mean - x) / stddev - stddev / lambda_
         return (amplitude / lambda_ * np.exp(term1) * norm.cdf(term2)).astype(np.float64)
