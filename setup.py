@@ -14,5 +14,6 @@ setup(
         "pandas",
         "seaborn",
         "Ipython",
+        "ipykernel",
     ],
 )
