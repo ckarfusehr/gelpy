@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.integrate import simps
 from scipy.stats import norm
 from abc import ABC, abstractmethod
+from scipy.optimize import minimize
 
 class FitModel(ABC):
     def __init__(self):
@@ -15,6 +16,10 @@ class FitModel(ABC):
 
     @abstractmethod
     def single_peak_function(self, x, *params):
+        pass
+    
+    @abstractmethod
+    def find_single_peak_maxima(self, *params):
         pass
 
     @abstractmethod
@@ -93,16 +98,17 @@ class FitModel(ABC):
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start, end)
                 total_area += area
 
-            # Calculate the relative area of each peak and create a new row for each peak
+            # Calculate parameter of each peak and create a new row for each peak
             for j in range(0, len(params) - 2, self.params_per_peak()):  # Exclude the last two parameters for the linear background
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start, end)
                 relative_area = area / total_area
+                maxima_position = self.find_single_peak_maxima(*params[j:j+self.params_per_peak()])
                 band_number = j+1
-                peak_data = [selected_lane_index, label, band_number, relative_area, *params[j:j+self.params_per_peak()]]
+                peak_data = [selected_lane_index, label, band_number, relative_area, maxima_position, *params[j:j+self.params_per_peak()]]
                 data.append(peak_data)
 
         # Create a DataFrame from the data
-        columns = ["selected_lane_index", "label", "band_number", "relative_area"] + self.param_labels()
+        columns = ["selected_lane_index", "label", "band_number", "relative_area", "maxima_position"] + self.param_labels()
         self.fit_df = pd.DataFrame(data, columns=columns)
         return self.fit_df
 
@@ -124,7 +130,10 @@ class GaussianFitModel(FitModel):
         y = self.single_peak_function(x, amplitude, mean, stddev)
         area = simps(y, x)
         return area
-
+    
+    def find_single_peak_maxima(self, amplitude, mean, stddev):
+        return mean
+    
     def params_per_peak(self):
         return 3  # amplitude, mean, stddev
 
@@ -155,6 +164,17 @@ class EmgFitModel(FitModel):
         y = self.single_peak_function(x, amplitude, mean, stddev, lambda_)
         area = simps(y, x)
         return area
+    
+    def find_single_peak_maxima(self, amplitude, mean, stddev, lambda_):
+        # Define a function to minimize (negative of single_peak_function)
+        def function_to_minimize(x):
+            return -self.single_peak_function(x, amplitude, mean, stddev, lambda_)
+        # Initial guess for the maximum is the mean
+        initial_guess = mean
+        # Use scipy's minimize function to find the maximum
+        result = minimize(function_to_minimize, initial_guess)
+        # Return the x value of the maximum
+        return result.x[0]
 
     def params_per_peak(self):
         return 4  # amplitude, mean, stddev, lambda_
