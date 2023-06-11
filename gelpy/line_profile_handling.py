@@ -61,15 +61,18 @@ class LineProfiles:
     def normalize_line_profile_to_area(self, line_profile):
         area = np.trapz(line_profile)
         return line_profile / area
-
-    
+        
     def set_line_profile_width(self, line_profile_width):
-            self.line_profile_width = line_profile_width
-            if self.x_label_positions is not None and self.line_profile_width is None:
-                n = len(self.x_label_positions)
-                self.line_profile_width = int(self.gel_image.shape[1] / (n * 2.5)) #2.5 is heuristic value, and depends on the gelcomb used
-                print(f"Used line width: {self.line_profile_width} px, with a gel width of: {self.gel_image.shape[1]} px, and {n} xlabel positions")
+        self.line_profile_width = line_profile_width
+        if self.x_label_positions is not None and line_profile_width is None:
+            self.line_profile_width = self.guess_line_profile_width(self.x_label_positions,self.gel_image, self.line_profile_width)
                 
+    @staticmethod
+    def guess_line_profile_width(x_label_positions, gel_image, line_profile_width):
+        n = len(x_label_positions)
+        line_profile_width = int(gel_image.shape[1] / (n * 2.5)) #2.5 is heuristic value, and depends on the gelcomb used
+        print(f"Used line width: {line_profile_width} px, with a gel width of: {gel_image.shape[1]} px, and {n} xlabel positions")
+        return line_profile_width      
 
     def plot_selected_line_profiles(self):
         fig, ax1 = plt.subplots(figsize=(self.cm_to_inch(18), self.cm_to_inch(10)))
