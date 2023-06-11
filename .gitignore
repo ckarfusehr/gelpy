@@ -1,3 +1,6 @@
+#
+*.png
+
 # package stuff
 gelpy.egg-info
 gelpy.egg-info/*

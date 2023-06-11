@@ -48,7 +48,7 @@ class Image:
             img_adjusted_linear = self.gel_image
         return img_adjusted_linear
 
-    def plot_adjusted_gels(self):
+    def plot_adjusted_gels(self, save):
         fig_height = self.gel_image.shape[0] * self.img_height_factor
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(self.cm_to_inch(18), fig_height))
         fig.suptitle(self.file_name_without_ext, fontsize=14, y=1)
@@ -81,9 +81,7 @@ class Image:
         ax2.tick_params(axis='both', labelsize=8)
 
         plt.show()
-
-        return x_label_positions
-
-    def save_fig(self, fig, save):
         if save:
             fig.savefig(self.collage_file_path, bbox_inches='tight')
+        
+        return x_label_positions

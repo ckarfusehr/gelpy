@@ -7,24 +7,20 @@ class AgaroseGel:
     def __init__(self, path, labels):
         self.path = path
         self.labels = labels
-        
-        # Dummy attributes
-        
-        # Methods
         self.Image = Image(self.path, self.labels)
         
     def show_raw_gel(self):
         self.Image.show_raw_image()
         return
     
-    def show_adjusted_images(self, x_label_pos, gamma=0.1, gain=1, intensity_range=(0,6000), img_height_factor=0.009, label_rotation=45):
+    def show_adjusted_images(self, x_label_pos, gamma=0.1, gain=1, intensity_range=(0,6000),
+                             img_height_factor=0.009, label_rotation=45, save=False):
         self.Image.gamma, self.Image.gain, self.Image.intensity_range = gamma, gain, intensity_range
         self.Image.img_height_factor, self.Image.label_rotation = img_height_factor, label_rotation
         self.Image.x_label_pos = x_label_pos
         self.Image.adjust_img_contrast_non_linear()
         self.Image.adjust_img_contrast_linear()
-        #save_fig(fig, collage_file_path, save)
-        self.x_label_positions = self.Image.plot_adjusted_gels()
+        self.x_label_positions = self.Image.plot_adjusted_gels(save)
         return
     
     def show_line_profiles(self, select_lanes="all", line_profile_width=None, slice_line_profile_length=(0,-1),
