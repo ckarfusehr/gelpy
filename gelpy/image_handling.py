@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, exposure
 import os
+import matplotlib.patches as patches
 
 class Image:
     def __init__(self, path, labels, x_label_pos, label_rotation,
@@ -55,6 +56,19 @@ class Image:
         else:
             img_adjusted_linear = self.gel_image
         self.lin_contrast_adjusted = img_adjusted_linear
+    
+    def color_line_profile_area(self, line_profile_width, alpha=0.5, color = None):
+        # The y position starts from 0 as we want the rectangle to span the entire height of the image
+        y_pos = 0
+
+        for x in self.x_label_positions:
+            # Calculate the left lower corner position of the rectangle
+            # We subtract half the width from the x_label_position to center the rectangle
+            rect_x = x - line_profile_width/2
+            rectangle_height = self.gel_image.shape[0]
+            rectangle = patches.Rectangle((rect_x, y_pos), line_profile_width, rectangle_height,
+                                          linewidth=1, edgecolor=color, facecolor=color, alpha=alpha)
+            self.adjusted_gel_axes[0].add_patch(rectangle)
 
     def plot_adjusted_gels(self, show_type, save=False):
         fig_height = self.gel_image.shape[0] * self.img_height_factor
@@ -96,9 +110,15 @@ class Image:
             y_ticks = np.arange(0, self.gel_image.shape[0], 100)
             ax.set_yticks(y_ticks)
             ax.tick_params(axis='both', labelsize=8)
-
-        plt.show()
+        
         if save:
             fig.savefig(self.collage_file_path, bbox_inches='tight')
         
+        self.adjusted_gel_fig = fig
+        self.adjusted_gel_axes = axes
+        self.x_label_positions = x_label_positions
+        
         return x_label_positions
+    
+
+        

@@ -69,10 +69,13 @@ class LineProfiles:
                 
     @staticmethod
     def guess_line_profile_width(x_label_positions, gel_image, line_profile_width):
-        n = len(x_label_positions)
-        line_profile_width = int(gel_image.shape[1] / (n * 2.5)) #2.5 is heuristic value, and depends on the gelcomb used
-        print(f"Used line width: {line_profile_width} px, with a gel width of: {gel_image.shape[1]} px, and {n} xlabel positions")
-        return line_profile_width      
+        if line_profile_width != None: # A workaround, to allow setup_gel to pass through custom line_profiles.
+            return line_profile_width
+        else:
+            n = len(x_label_positions)
+            line_profile_width = int(gel_image.shape[1] / (n * 2.5)) #2.5 is heuristic value, and depends on the gelcomb used
+            print(f"Used line width: {line_profile_width} px, with a gel width of: {gel_image.shape[1]} px, and {n} xlabel positions")
+            return line_profile_width      
 
     def plot_selected_line_profiles(self):
         fig, ax1 = plt.subplots(figsize=(self.cm_to_inch(18), self.cm_to_inch(10)))

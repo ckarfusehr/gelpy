@@ -22,6 +22,7 @@ class AgaroseGel:
         
         # Utility functions for setting up gel well.
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
+        self.Image.color_line_profile_area(self.global_line_profile_width, alpha=0.05, color="g")
         return
     
     def show_adjusted_images(self, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),
