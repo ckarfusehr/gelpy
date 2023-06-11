@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class LineProfiles:
-    def __init__(self, gel_image, labels, x_label_positions, select_lanes, slice_line_profile_length, normalization_type):
+    def __init__(self, gel_image, labels, x_label_positions, select_lanes, slice_line_profile_length, normalization_type,
+                 save, save_name_overview):
         self.gel_image = gel_image
         self.labels = labels
         #Dummy attributes
@@ -12,6 +13,8 @@ class LineProfiles:
         self.select_lanes = select_lanes
         self.slice_start, self.slice_end = slice_line_profile_length
         self.normalization_type = normalization_type
+        self.save = save
+        self.save_name_overview = save_name_overview
         
 
     @staticmethod
@@ -83,5 +86,8 @@ class LineProfiles:
                 ax2.axis('off')  # Remove the right y-axis
         ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
         ax1.set(ylabel="normalized", xlabel="Pixel")
+        
+        if self.save:
+            fig.savefig(self.save_name_overview, bbox_inches='tight')
 
         return fig

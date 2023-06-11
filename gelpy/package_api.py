@@ -24,10 +24,13 @@ class AgaroseGel:
         return
     
     def show_line_profiles(self, select_lanes="all", line_profile_width=None, slice_line_profile_length=(0,-1),
-                           fit=None, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False, normalization_type="area"):
+                           fit=None, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False,
+                           normalization_type="area", save=False, save_name_overview="selected_line_profiles.svg",
+                           save_name_fits="selected_fitted_profiles.svg"):
         
         self.LineProfiles = LineProfiles(self.Image.gel_image, self.labels, self.x_label_positions,
-                                         select_lanes, slice_line_profile_length, normalization_type)
+                                         select_lanes, slice_line_profile_length, normalization_type,
+                                         save, save_name_overview)
         self.LineProfiles.set_line_profile_width(line_profile_width)
         self.LineProfiles.extract_line_profiles()
         self.LineProfiles.normalize_line_profiles()
@@ -42,7 +45,7 @@ class AgaroseGel:
             return
             
         self.LineFits = LineFits(fit_model, self.LineProfiles.selected_line_profiles_normalized, self.LineProfiles.selected_labels,
-                                    maxima_threshold, maxima_prominence)
+                                    maxima_threshold, maxima_prominence, save, save_name_fits)
         self.LineFits.fit()
         self.LineFits.display_dataframe()
         
