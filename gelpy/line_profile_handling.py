@@ -20,12 +20,17 @@ class LineProfiles:
 
     def extract_line_profiles(self):
         if self.select_lanes == "all":
-            self.selected_lanes = self.x_label_positions
-            self.selected_labels = self.labels
-        else:
-            self.selected_lanes = [self.x_label_positions[lane] for lane in self.select_lanes]
-            self.selected_labels = [self.labels[lane] for lane in self.select_lanes]
-            
+            indices = range(len(self.labels))
+        elif isinstance(self.select_lanes, list) and all(isinstance(i, int) for i in self.select_lanes):
+            indices = self.select_lanes
+        elif isinstance(self.select_lanes, list) and all(isinstance(i, str) for i in self.select_lanes):
+            indices = [i for i, label in enumerate(self.labels) if label in self.select_lanes]
+        elif isinstance(self.select_lanes, str):
+            indices = [i for i, label in enumerate(self.labels) if label == self.select_lanes] 
+
+        self.selected_lanes = [self.x_label_positions[i] for i in indices]
+        self.selected_labels = [self.labels[i] for i in indices]
+
         self.selected_line_profiles = []
         for selected_lane in self.selected_lanes:
             line_profile = self.extract_line_profile(selected_lane)

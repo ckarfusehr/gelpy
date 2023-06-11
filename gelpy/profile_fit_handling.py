@@ -55,14 +55,16 @@ class LineFits:
             axs[i, 1].set_ylabel('')
             axs[i, 1].yaxis.set_tick_params(left=False, labelleft=False)
 
-            # Create x-axis ticks on the top of the plot, at the median of each fit
+            # Create x-axis ticks on the top of the plot, at the maxima of each fit
+            maxima_positions = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, "maxima_position"].values
+            axs[i, 1].xaxis.set_ticks(maxima_positions)
             axs[i, 1].xaxis.set_ticks_position('top')
             axs[i, 1].xaxis.set_label_position('top')
-            axs[i, 1].set_xticks(self.fit_model.fit_df["maxima_position"])
 
             # Label those peak ticks with the relative peak area
             relative_areas = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, 'relative_area'].values
             labels = [f"{int(np.round((area * 100), 0))} %" for area in relative_areas]
+            print(labels)
             axs[i, 1].set_xticklabels(labels)
 
             # Rotate the x-axis labels if they overlap
