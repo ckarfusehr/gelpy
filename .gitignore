@@ -1,8 +1,11 @@
 #
 *.png
+*.svg
 
 # package stuff
 *.pyc
+gelpy/__pycache__/line_profile_handling.cpython-311.pyc
+gelpy/__pycache__/package_api.cpython-311.pyc
 gelpy/__pycache__/*
 gelpy.egg-info
 gelpy.egg-info/*
