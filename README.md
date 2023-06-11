@@ -2,8 +2,7 @@
 
 ### Create setup class
 
-* extract relevant functions from other packages
-    * Implement setup_gel() function of Agarose class, which allows setting the lane x axis positions. It should do some autoadjustments of the contrast to make it easier. It should also directly use the lane width and plot the used lane for line profile extraction as a slightly red overlay.
+* and plot the used lane for line profile extraction as a slightly red overlay.
 * Add interactive ipython widgets to setup gel
 * Add some autodetection functions which give reaonable guesses for the parameters set in the setup class.
     * Implement a function to autodetect the lane positions, based on summing them up aong the y-axis, followed by a peak detection scheme. Perhaps add another function, which calculates also the optimal lane-width, used for all lanes?
@@ -27,6 +26,7 @@
 * Setup a new class, which can be used for quantitative gel analysis. E.g. it accepts the used ladder and the applied ladder mass, calculates a calibration curve out of it, and uses this to convert the ntensities of other bands into sample mass.
 
 ### Fix bugs
+self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calculation from plotting function
 
 ### Write real README file on how to use the package
 
