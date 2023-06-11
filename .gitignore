@@ -2,6 +2,8 @@
 *.png
 
 # package stuff
+*.pyc
+gelpy/__pycache__/*
 gelpy.egg-info
 gelpy.egg-info/*
 PKG-INFO
