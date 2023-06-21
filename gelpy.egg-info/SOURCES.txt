@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.py
 gelpy/__init__.py
