@@ -2,6 +2,7 @@ from .image_handling import Image
 from .line_profile_handling import LineProfiles
 from .profile_fitting_models import GaussianFitModel, EmgFitModel
 from .profile_fit_handling import LineFits
+from .background_ransac_fit_models import PlaneFit2d
 
 class AgaroseGel:
     def __init__(self, path):
@@ -24,6 +25,21 @@ class AgaroseGel:
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
         self.Image.color_line_profile_area(self.global_line_profile_width, alpha=0.05, color="g")
         return
+    
+    def remove_background(self, model="2d_plane_fit"):
+        if model == "2d_plane_fit":
+            self.background_model = PlaneFit2d(self.Image.gel_image)
+        else:
+            print("no valid model selected")
+            
+        self.background_model.extract_fit_data_from_image(top_stripe_height=10, top_stripe_position=10,
+                                                     bottom_stripe_height=10, bottom_stripe_position=1200)
+        self.background_model.visualize_fit_data(top_stripe_height=10, top_stripe_position=10,
+                                            bottom_stripe_height=10, bottom_stripe_position=1200)
+        self.background_model.fit_model_to_data()
+        self.background_model.substract_background(show_new_image=True)
+        self.background_model.visualize_img_bgfit_newimg()
+        
     
     def show_adjusted_images(self, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),
                              img_height_factor=0.009, label_rotation=45, save=False, show_type="both"):
