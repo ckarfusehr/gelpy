@@ -15,7 +15,7 @@ class PlaneFit2d(BackgroundHandler):
             self.bottom_stripe_position, self.bottom_stripe_height = model_input[1]
         if model_input == None: # set default parameter
             self.top_stripe_position, self.top_stripe_height = 10, 10
-            self.bottom_stripe_position, self.bottom_stripe_height =1200, 10
+            self.bottom_stripe_position, self.bottom_stripe_height =self.image.shape[0]-15, 10 #heuristic params
 
     def extract_fit_data_from_image(self):
         if not all([self.top_stripe_height, self.top_stripe_position, self.bottom_stripe_height, self.bottom_stripe_position]):
