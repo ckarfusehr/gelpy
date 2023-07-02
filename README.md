@@ -1,9 +1,7 @@
 ## To - do before making public:
 
-### Improve the background removal
-* remove line fit background correction optional
-* Automate parameter selection for background correction and make them adaptable
-
+### Improve the background removal   
+* Automate parameter selection for background correction
 ### Write tests
 
 * learn what the heck good tests are

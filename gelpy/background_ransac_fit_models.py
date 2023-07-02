@@ -6,36 +6,42 @@ from scipy.linalg import lstsq
 from sklearn.linear_model import RANSACRegressor, LinearRegression
 
 class PlaneFit2d(BackgroundHandler):
-    def __init__(self, image):
+    def __init__(self, image, model_input):
         super().__init__(image)
         self.inlier_mask = None
         self.reconstructed_bg = None
+        if model_input != None:
+            self.top_stripe_position, self.top_stripe_height = model_input[0]
+            self.bottom_stripe_position, self.bottom_stripe_height = model_input[1]
+        if model_input == None: # set default parameter
+            self.top_stripe_position, self.top_stripe_height = 10, 10
+            self.bottom_stripe_position, self.bottom_stripe_height =1200, 10
 
-    def extract_fit_data_from_image(self, top_stripe_height=None, top_stripe_position=None, bottom_stripe_height=None, bottom_stripe_position=None):
-        if not all([top_stripe_height, top_stripe_position, bottom_stripe_height, bottom_stripe_position]):
+    def extract_fit_data_from_image(self):
+        if not all([self.top_stripe_height, self.top_stripe_position, self.bottom_stripe_height, self.bottom_stripe_position]):
             raise ValueError("All parameters must be provided for PlaneFit2d")
 
-        self.top_stripe = self.image[top_stripe_position:top_stripe_position+top_stripe_height, :]
-        self.bottom_stripe = self.image[bottom_stripe_position:bottom_stripe_position+bottom_stripe_height, :]
+        self.top_stripe = self.image[self.top_stripe_position:self.top_stripe_position+self.top_stripe_height, :]
+        self.bottom_stripe = self.image[self.bottom_stripe_position:self.bottom_stripe_position+self.bottom_stripe_height, :]
 
-        X_top, Y_top = np.meshgrid(np.arange(self.top_stripe.shape[1]), np.arange(top_stripe_position, top_stripe_position+top_stripe_height))
-        X_bottom, Y_bottom = np.meshgrid(np.arange(self.bottom_stripe.shape[1]), np.arange(bottom_stripe_position, bottom_stripe_position+bottom_stripe_height))
+        X_top, Y_top = np.meshgrid(np.arange(self.top_stripe.shape[1]), np.arange(self.top_stripe_position, self.top_stripe_position+self.top_stripe_height))
+        X_bottom, Y_bottom = np.meshgrid(np.arange(self.bottom_stripe.shape[1]), np.arange(self.bottom_stripe_position, self.bottom_stripe_position+self.bottom_stripe_height))
 
         self.fit_data = np.concatenate((self.top_stripe.ravel(), self.bottom_stripe.ravel()))
         self.fit_data_X = np.concatenate((X_top.ravel(), X_bottom.ravel()))
         self.fit_data_Y = np.concatenate((Y_top.ravel(), Y_bottom.ravel()))
 
 
-    def visualize_fit_data(self, top_stripe_height=None, top_stripe_position=None, bottom_stripe_height=None, bottom_stripe_position=None):
-        if not all([top_stripe_height, top_stripe_position, bottom_stripe_height, bottom_stripe_position]):
+    def visualize_fit_data(self):
+        if not all([self.top_stripe_height, self.top_stripe_position, self.bottom_stripe_height, self.bottom_stripe_position]):
             raise ValueError("All parameters must be provided for PlaneFit2d")
         
         # Create an RGBA image with the same size as the original image
         overlay = np.zeros((self.image.shape[0], self.image.shape[1], 4))
 
         # Set alpha (transparency) to 0.5 for the stripes, 0 elsewhere
-        overlay[top_stripe_position:top_stripe_position+top_stripe_height, :, 3] = 0.5
-        overlay[bottom_stripe_position:bottom_stripe_position+bottom_stripe_height, :, 3] = 0.5
+        overlay[self.top_stripe_position:self.top_stripe_position+self.top_stripe_height, :, 3] = 0.5
+        overlay[self.bottom_stripe_position:self.bottom_stripe_position+self.bottom_stripe_height, :, 3] = 0.5
 
         # Set color of the stripes to red
         overlay[:, :, 0] = 1
@@ -112,39 +118,7 @@ class PlaneFit2d(BackgroundHandler):
 
         plt.tight_layout()
         plt.show()
-        
-        # y_len, x_len = self.image.shape
-        # Y = np.arange(y_len).reshape(-1, 1)
-        # bg_line = self.params[0]*Y + self.params[1]
-        # bg_line_broadcasted = np.broadcast_to(bg_line, (y_len, x_len))
-
-        # new_image = self.image - bg_line_broadcasted
-        # new_image[new_image < 0] = 0
-
-        # slice_indices = np.linspace(0, x_len, 11).astype(int)
-
-        # fig, axs = plt.subplots(2, 5, figsize=(20, 8))
-        # axs = axs.flatten()
-
-        # for i in range(10):
-        #     start, end = slice_indices[i], slice_indices[i+1]
-        #     original_slice = self.image[:, start:end]
-        #     bg_slice = bg_line_broadcasted[:, start:end]
-        #     new_slice = new_image[:, start:end]
-
-        #     original_profile = original_slice.mean(axis=1)
-        #     bg_profile = bg_slice.mean(axis=1)
-        #     new_profile = new_slice.mean(axis=1)
-
-        #     axs[i].plot(original_profile, label='Original')
-        #     axs[i].plot(bg_profile, label='Background')
-        #     axs[i].plot(new_profile, label='New')
-        #     axs[i].legend()
-        #     axs[i].set_title(f'Slice {i+1}')
-
-        # plt.tight_layout()
-        # plt.show()
-        
+             
         
 ## Old implementation, fitting only along the y-axis:
 

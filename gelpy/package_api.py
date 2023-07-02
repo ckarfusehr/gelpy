@@ -26,16 +26,14 @@ class AgaroseGel:
         self.Image.color_line_profile_area(self.global_line_profile_width, alpha=0.05, color="g")
         return
     
-    def remove_background(self, model="2d_plane_fit"):
+    def remove_background(self, model="2d_plane_fit", model_input=None):
         if model == "2d_plane_fit":
-            self.background_model = PlaneFit2d(self.Image.gel_image)
+            self.background_model = PlaneFit2d(self.Image.gel_image, model_input)
         else:
             print("no valid model selected")
             
-        self.background_model.extract_fit_data_from_image(top_stripe_height=10, top_stripe_position=10,
-                                                     bottom_stripe_height=10, bottom_stripe_position=1200)
-        self.background_model.visualize_fit_data(top_stripe_height=10, top_stripe_position=10,
-                                            bottom_stripe_height=10, bottom_stripe_position=1200)
+        self.background_model.extract_fit_data_from_image()
+        self.background_model.visualize_fit_data()
         self.background_model.fit_model_to_data()
         self.Image.gel_image = self.background_model.substract_background(show_new_image=True)  # this sets the original gel_image to the bg corrected image
         self.background_model.visualize_img_bgfit_newimg()
