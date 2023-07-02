@@ -33,10 +33,9 @@ class AgaroseGel:
             print("no valid model selected")
             
         self.background_model.extract_fit_data_from_image()
-        self.background_model.visualize_fit_data()
         self.background_model.fit_model_to_data()
-        self.Image.gel_image = self.background_model.substract_background(show_new_image=True)  # this sets the original gel_image to the bg corrected image
-        self.background_model.visualize_img_bgfit_newimg()
+        self.Image.gel_image = self.background_model.substract_background()  # this sets the original gel_image to the bg corrected image
+        self.background_model.visualize_fit_data()
         
     # repeated code with setup function..
     def show_adjusted_images(self, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),

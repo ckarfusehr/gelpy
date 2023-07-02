@@ -1,7 +1,7 @@
 ## To - do before making public:
 
-### Improve the background removal   
-* Automate parameter selection for background correction
+Build dashboard from background removal dashboard, by inlcuding the plot ussed to setup label positions and band widths.
+
 ### Write tests
 
 * learn what the heck good tests are
@@ -41,6 +41,7 @@ self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calcula
 ### Unorganized thoughts:
 * implement another peak finding algorithm, whichis based on inflection point detection of a spline fitted function?
 * Smooth the data considerably before detecting and determining peaks.
+* add util functions to crop, splot and rotate images. So people can come in directly with their recorded images.
 
 ### Publish to pypi and conda
 

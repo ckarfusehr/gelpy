@@ -21,22 +21,12 @@ class BackgroundHandler(ABC):
     def fit_model_to_data(self):
         pass
 
-    def substract_background(self, show_new_image=False):
+    def substract_background(self):
         self.new_image = self.image - self.reconstructed_bg
         self.new_image[self.new_image < 0] = 0  # clipping negative values to zero
-        
-        if show_new_image:
-            vminnew_img, vmaxnew_img = np.percentile(self.new_image, [1, 99])             # Determine the 2nd and 98th percentiles of the image data
-            plt.imshow(self.new_image, cmap='gray', vmin=vminnew_img, vmax=vmaxnew_img)
-            plt.title('Image after background subtraction')
-            plt.show()
             
         return self.new_image
     
     @abstractmethod
     def visualize_fit_data(self):
-        pass
-
-    @abstractmethod
-    def visualize_img_bgfit_newimg(self):
         pass

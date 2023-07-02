@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from scipy.linalg import lstsq
 from sklearn.linear_model import RANSACRegressor, LinearRegression
+from matplotlib.gridspec import GridSpec
 
 class PlaneFit2d(BackgroundHandler):
     def __init__(self, image, model_input):
@@ -33,9 +34,20 @@ class PlaneFit2d(BackgroundHandler):
 
 
     def visualize_fit_data(self):
-        if not all([self.top_stripe_height, self.top_stripe_position, self.bottom_stripe_height, self.bottom_stripe_position]):
-            raise ValueError("All parameters must be provided for PlaneFit2d")
-        
+        y_len, x_len = self.image.shape
+        X, Y = np.meshgrid(np.arange(x_len), np.arange(y_len))
+        bg_plane = self.params[0]*X + self.params[1]*Y + self.params[2]  # Reconstruct the background plane
+
+        # Compute the new image
+        new_image = self.image - bg_plane
+        new_image[new_image < 0] = 0  # clip negative values to zero
+
+        # Define the slices
+        slice_indices = np.linspace(0, x_len, 11).astype(int)  # Returns 11 points, but we will use it as start/end indices for 10 slices
+
+        fig = plt.figure(figsize=(20, 16))  # Adjust size as needed
+        gs = GridSpec(4, 10, figure=fig)
+
         # Create an RGBA image with the same size as the original image
         overlay = np.zeros((self.image.shape[0], self.image.shape[1], 4))
 
@@ -49,18 +61,43 @@ class PlaneFit2d(BackgroundHandler):
         # Determine the 2nd and 98th percentiles of the image data
         vmin, vmax = np.percentile(self.image, [2, 98])
 
-        fig, ax = plt.subplots(1, 2, figsize=(15, 5)) # New line to create a subplot
+        ax1 = fig.add_subplot(gs[0:2, 0:5])
+        ax1.imshow(self.image, cmap='gray', vmin=vmin, vmax=vmax)
+        ax1.imshow(overlay)
+        ax1.set_title('Original image with stripes used for fitting')
 
-        ax[0].imshow(self.image, cmap='gray', vmin=vmin, vmax=vmax) # Changed from plt.imshow to ax[0].imshow
-        ax[0].imshow(overlay)
-        ax[0].set_title('Original image with stripes used for fitting')
+        ax2 = fig.add_subplot(gs[0:2, 5:10])
+        ax2.hist(self.top_stripe.flatten(), bins=100, color='red', alpha=0.5, label='Top Stripe')  # Top stripe histogram
+        ax2.hist(self.bottom_stripe.flatten(), bins=100, color='blue', alpha=0.5, label='Bottom Stripe')  # Bottom stripe histogram
+        ax2.set_title('Pixel Intensity Distribution')
+        ax2.legend()
 
-        # New lines to plot histograms
-        #ax[1].hist(self.image.flatten(), bins=100, color='gray', alpha=0.5, label='Entire Image')  # Entire image histogram
-        ax[1].hist(self.top_stripe.flatten(), bins=100, color='red', alpha=0.5, label='Top Stripe')  # Top stripe histogram
-        ax[1].hist(self.bottom_stripe.flatten(), bins=100, color='blue', alpha=0.5, label='Bottom Stripe')  # Bottom stripe histogram
-        ax[1].set_title('Pixel Intensity Distribution')
-        ax[1].legend()
+        for i in range(10):
+            start, end = slice_indices[i], slice_indices[i+1]
+            original_slice = self.image[:, start:end]
+            bg_slice = bg_plane[:, start:end]
+            new_slice = new_image[:, start:end]
+
+            # Compute the row-averaged profiles
+            original_profile = original_slice.mean(axis=1)
+            bg_profile = bg_slice.mean(axis=1)
+            new_profile = new_slice.mean(axis=1)
+
+            # Plot the profiles
+            if i < 5:  # Plot on the third row
+                ax = fig.add_subplot(gs[2, i*2:i*2+2])
+                ax.plot(original_profile, label='Original')
+                ax.plot(bg_profile, label='Background')
+                ax.plot(new_profile, label='New') 
+                ax.legend()
+                ax.set_title(f'Slice {i+1}')
+            else:  # Plot on the fourth row
+                ax = fig.add_subplot(gs[3, (i-5)*2:(i-5)*2+2])
+                ax.plot(original_profile, label='Original')
+                ax.plot(bg_profile, label='Background')
+                ax.plot(new_profile, label='New') 
+                ax.legend()
+                ax.set_title(f'Slice {i+1}')
 
         plt.tight_layout()
         plt.show()
@@ -82,42 +119,42 @@ class PlaneFit2d(BackgroundHandler):
         X, Y = np.meshgrid(np.arange(x_len), np.arange(y_len))
         self.reconstructed_bg = self.params[0]*X + self.params[1]*Y + self.params[2]
 
-    def visualize_img_bgfit_newimg(self):
+    # def visualize_img_bgfit_newimg(self):
         
-        y_len, x_len = self.image.shape
-        X, Y = np.meshgrid(np.arange(x_len), np.arange(y_len))
-        bg_plane = self.params[0]*X + self.params[1]*Y + self.params[2]  # Reconstruct the background plane
+    #     y_len, x_len = self.image.shape
+    #     X, Y = np.meshgrid(np.arange(x_len), np.arange(y_len))
+    #     bg_plane = self.params[0]*X + self.params[1]*Y + self.params[2]  # Reconstruct the background plane
 
-        # Compute the new image
-        new_image = self.image - bg_plane
-        new_image[new_image < 0] = 0  # clip negative values to zero
+    #     # Compute the new image
+    #     new_image = self.image - bg_plane
+    #     new_image[new_image < 0] = 0  # clip negative values to zero
 
-        # Define the slices
-        slice_indices = np.linspace(0, x_len, 11).astype(int)  # Returns 11 points, but we will use it as start/end indices for 10 slices
+    #     # Define the slices
+    #     slice_indices = np.linspace(0, x_len, 11).astype(int)  # Returns 11 points, but we will use it as start/end indices for 10 slices
 
-        fig, axs = plt.subplots(2, 5, figsize=(20, 8))  # Adjust size as needed
-        axs = axs.flatten()  # So we can iterate over the axes in a single loop
+    #     fig, axs = plt.subplots(2, 5, figsize=(20, 8))  # Adjust size as needed
+    #     axs = axs.flatten()  # So we can iterate over the axes in a single loop
 
-        for i in range(10):
-            start, end = slice_indices[i], slice_indices[i+1]
-            original_slice = self.image[:, start:end]
-            bg_slice = bg_plane[:, start:end]
-            new_slice = new_image[:, start:end]  # New line
+    #     for i in range(10):
+    #         start, end = slice_indices[i], slice_indices[i+1]
+    #         original_slice = self.image[:, start:end]
+    #         bg_slice = bg_plane[:, start:end]
+    #         new_slice = new_image[:, start:end]  # New line
 
-            # Compute the row-averaged profiles
-            original_profile = original_slice.mean(axis=1)
-            bg_profile = bg_slice.mean(axis=1)
-            new_profile = new_slice.mean(axis=1)  # New line
+    #         # Compute the row-averaged profiles
+    #         original_profile = original_slice.mean(axis=1)
+    #         bg_profile = bg_slice.mean(axis=1)
+    #         new_profile = new_slice.mean(axis=1)  # New line
 
-            # Plot the profiles
-            axs[i].plot(original_profile, label='Original')
-            axs[i].plot(bg_profile, label='Background')
-            axs[i].plot(new_profile, label='New')  # New line
-            axs[i].legend()
-            axs[i].set_title(f'Slice {i+1}')
+    #         # Plot the profiles
+    #         axs[i].plot(original_profile, label='Original')
+    #         axs[i].plot(bg_profile, label='Background')
+    #         axs[i].plot(new_profile, label='New')  # New line
+    #         axs[i].legend()
+    #         axs[i].set_title(f'Slice {i+1}')
 
-        plt.tight_layout()
-        plt.show()
+    #     plt.tight_layout()
+    #     plt.show()
              
         
 ## Old implementation, fitting only along the y-axis:
