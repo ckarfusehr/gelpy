@@ -26,16 +26,11 @@ class FitModel(ABC):
     def peak_area(self, *params, start, end):
         pass
 
-    @staticmethod
-    def linear_background_function(x, slope, intercept):
-        return slope * x + intercept
-
     def multi_peak_function(self, x, *params):
         x = x.astype(np.float64)
         result = np.zeros_like(x)
-        for i in range(0, len(params) - 2, self.params_per_peak()):
+        for i in range(0, len(params), self.params_per_peak()):
             result += self.single_peak_function(x, *params[i:i+self.params_per_peak()])
-        result += self.linear_background_function(x, params[-2], params[-1])
         return result
 
     @abstractmethod
@@ -60,29 +55,19 @@ class FitModel(ABC):
             for max_index in maxima_indices:
                 initial_guess.extend(self.initial_guess(max_index, selected_normalized_line_profile))
 
-            # Add initial guesses for the slope and intercept of the linear background
-            initial_guess.extend([0, 0])  # Assume a flat background as a starting point
-
-            ## Fit the curve to the line profile data
-            
-            # seed x-axis for fitting
-            x = np.arange(len(selected_normalized_line_profile))
-
             # Define the lower and upper bounds for the parameters
             lower_bounds = [0] * len(initial_guess)
             upper_bounds = [np.inf] * len(initial_guess)
             
             # Fix the mean values during fitting to the previously detected maxima +-1
-                # kinda breaking the emg fitting, as there mean is not equal to the maxima maxima.
             if self.fit_type == "gaussian":
                 for i, max_index in enumerate(maxima_indices):
                     lower_bounds[i*self.params_per_peak()+1] = max_index -1
                     upper_bounds[i*self.params_per_peak()+1] = max_index +1
             bounds = (lower_bounds, upper_bounds)
-            print(f"initial_guess: {initial_guess}\nlower_bounds{lower_bounds}\nupper_bounds{upper_bounds}")
 
             try:
-                optimized_parameters, _ = opt.curve_fit(self.multi_peak_function, x, selected_normalized_line_profile, p0=initial_guess, bounds=bounds)
+                optimized_parameters, _ = opt.curve_fit(self.multi_peak_function, np.arange(len(selected_normalized_line_profile)), selected_normalized_line_profile, p0=initial_guess, bounds=bounds)
                 self.fitted_peaks.append((selected_lane_index, selected_labels[selected_lane_index], optimized_parameters))
             except RuntimeError:
                 print(f"Failed to fit curve for line profile {selected_labels[selected_lane_index]}")
@@ -94,12 +79,12 @@ class FitModel(ABC):
             # Calculate the area under each peak
             start = 0
             end = len(selected_normalized_line_profiles[i])
-            for j in range(0, len(params) - 2, self.params_per_peak()):  # Exclude the last two parameters for the linear background
+            for j in range(0, len(params), self.params_per_peak()):  
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start, end)
                 total_area += area
 
             # Calculate parameter of each peak and create a new row for each peak
-            for band_number, j in enumerate(range(0, len(params) - 2, self.params_per_peak())):  # Exclude the last two parameters for the linear background
+            for band_number, j in enumerate(range(0, len(params), self.params_per_peak())): 
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start, end)
                 relative_area = area / total_area
                 maxima_position = self.find_single_peak_maxima(*params[j:j+self.params_per_peak()])
@@ -148,11 +133,6 @@ class EmgFitModel(FitModel):
         super().__init__()
         self.fit_type="emg"
     
-    # def single_peak_function(self, x, amplitude, mean, stddev, lambda_): # standard emg
-    #     term1 = (mean - x) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
-    #     term2 = (x - mean) / stddev - stddev / lambda_
-    #     return (amplitude / lambda_ * np.exp(term1) * norm.cdf(term2)).astype(np.float64)
-
     def single_peak_function(self, x, amplitude, mean, stddev, lambda_):
         term1 = (x - mean) / lambda_ + (stddev ** 2) / (2 * lambda_ ** 2)
         term2 = (mean - x) / stddev - stddev / lambda_

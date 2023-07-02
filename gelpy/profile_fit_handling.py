@@ -22,7 +22,6 @@ class LineFits:
         self.fit_model.fit(self.selected_normalized_line_profiles, self.maxima_threshold, self.maxima_prominence, self.selected_labels)
         self.fit_model.create_fit_dataframe(self.selected_normalized_line_profiles)
     
-    ## To-do: remove the if statements for the fit model, and change the single_peak functions instead or something.
     def plot_fits_and_profiles(self):
         # Create a figure with two columns and as many rows as there are normalized_line_profiles
         n_profiles = len(self.selected_normalized_line_profiles)
@@ -41,13 +40,10 @@ class LineFits:
             axs[i, 0].plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
             
             # Plot all the peaks fitted for this line profile in the right subplot
-            for j in range(0, len(optimized_parameters) - 2, self.fit_model.params_per_peak()):  # Exclude the last two parameters for the linear background
+            for j in range(0, len(optimized_parameters), self.fit_model.params_per_peak()):
                 optimized_parameters_structured = optimized_parameters[j:j+self.fit_model.params_per_peak()]
-                print(f"opt_params_for_ind_plot: {optimized_parameters_structured}")
-                axs[i, 1].plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured)
-                            + self.fit_model.linear_background_function(x, optimized_parameters[-2], optimized_parameters[-1]), label=f'Band {j//3 + 1}')
+                axs[i, 1].plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured), label=f'Band {j//3 + 1}')
 
-            axs[i, 1].plot(x, self.fit_model.linear_background_function(x, optimized_parameters[-2], optimized_parameters[-1]), color='black')
             axs[i, 1].set_title(f'Fitted Peaks - {selected_label}')
 
             # Plot the original normalized_line_profile in the right subplot
@@ -67,7 +63,6 @@ class LineFits:
             # Label those peak ticks with the relative peak area
             relative_areas = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, 'relative_area'].values
             labels = [f"{int(np.round((area * 100), 0))} %" for area in relative_areas]
-            print(labels)
             axs[i, 1].set_xticklabels(labels)
 
             # Rotate the x-axis labels if they overlap
@@ -81,7 +76,6 @@ class LineFits:
         if self.save:
             fig.savefig(self.save_name_fits)
             
-        
     def display_dataframe(self):
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
