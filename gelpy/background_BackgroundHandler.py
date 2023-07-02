@@ -31,7 +31,7 @@ class BackgroundHandler(ABC):
             plt.title('Image after background subtraction')
             plt.show()
             
-        return
+        return self.new_image
     
     @abstractmethod
     def visualize_fit_data(self):

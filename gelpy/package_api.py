@@ -37,18 +37,18 @@ class AgaroseGel:
         self.background_model.visualize_fit_data(top_stripe_height=10, top_stripe_position=10,
                                             bottom_stripe_height=10, bottom_stripe_position=1200)
         self.background_model.fit_model_to_data()
-        self.background_model.substract_background(show_new_image=True)
+        self.Image.gel_image = self.background_model.substract_background(show_new_image=True)  # this sets the original gel_image to the bg corrected image
         self.background_model.visualize_img_bgfit_newimg()
         
-    
+    # repeated code with setup function..
     def show_adjusted_images(self, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),
                              img_height_factor=0.009, label_rotation=45, save=False, show_type="both"):
-        self.Image = Image(self.path, self.labels, self.x_label_pos, label_rotation, #extract the passing of x_label_pos here?
+        image_for_display = Image(self.path, self.labels, self.x_label_pos, label_rotation, #extract the passing of x_label_pos here?
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
         
-        self.Image.adjust_img_contrast_non_linear()
-        self.Image.adjust_img_contrast_linear()
-        self.x_label_positions = self.Image.plot_adjusted_gels(show_type, save)
+        image_for_display.adjust_img_contrast_non_linear()
+        image_for_display.adjust_img_contrast_linear()
+        image_for_display.plot_adjusted_gels(show_type, save)
         return
     
     def show_raw_gel(self):
