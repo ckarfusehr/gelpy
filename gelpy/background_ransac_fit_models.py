@@ -1,8 +1,6 @@
 from .background_BackgroundHandler import BackgroundHandler
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import minimize
-from scipy.linalg import lstsq
 from sklearn.linear_model import RANSACRegressor, LinearRegression
 from matplotlib.gridspec import GridSpec
 
