@@ -1,6 +1,7 @@
 #
 *.png
 *.svg
+*.pyc
 
 # package stuff
 *.pyc
