@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from .utility_functions import cm_to_inch
 
 class LineProfiles:
     def __init__(self, gel_image, labels, x_label_positions, select_lanes, slice_line_profile_length, normalization_type,
@@ -16,11 +17,6 @@ class LineProfiles:
         self.save = save
         self.save_name_overview = save_name_overview
         
-
-    @staticmethod
-    def cm_to_inch(cm):
-        return cm * 0.393701
-
     def extract_line_profiles(self):
         if self.select_lanes == "all":
             indices = range(len(self.labels))

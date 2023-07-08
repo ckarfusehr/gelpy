@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import display
+from .utility_functions import cm_to_inch
 
 class LineFits:
     def __init__(self, fit_model, selected_normalized_line_profiles, selected_labels, maxima_threshold, maxima_prominence,
@@ -13,10 +14,6 @@ class LineFits:
         self.fit_model = fit_model()
         self.save = save
         self.save_name_fits = save_name_fits
-
-    @staticmethod
-    def cm_to_inch(cm):
-        return cm * 0.393701
 
     def fit(self):
         self.fit_model.fit(self.selected_normalized_line_profiles, self.maxima_threshold, self.maxima_prominence, self.selected_labels)
