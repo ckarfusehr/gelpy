@@ -24,7 +24,7 @@ class LineFits:
         fig, axs = plt.subplots(n_profiles, 2, figsize=(cm_to_inch(18), n_profiles*cm_to_inch(7)), sharey='row', squeeze=False)
 
         for i, (selected_lane_index, selected_label, optimized_parameters) in enumerate(self.fit_model.fitted_peaks):
-            x = np.arange(len(self.selected_normalized_line_profiles[selected_lane_index]))
+            x = np.arange(len(self.selected_normalized_line_profiles[selected_lane_index])).astype("float64")
 
             self.plot_left_subplot(axs[i, 0], x, selected_lane_index, selected_label, optimized_parameters)
             self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label) # added selected_label

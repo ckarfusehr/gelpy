@@ -42,6 +42,7 @@ self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calcula
 * implement another peak finding algorithm, whichis based on inflection point detection of a spline fitted function?
 * Smooth the data considerably before detecting and determining peaks.
 * add util functions to crop, splot and rotate images. So people can come in directly with their recorded images.
+* when setting up the label positions and widths, instead of drawing red rectangles on top, Just set all non-selected pixels to 0.1 transparency. Then peopl can directly see what is selected.
 
 ### Publish to pypi and conda
 
