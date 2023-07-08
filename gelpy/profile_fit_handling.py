@@ -20,59 +20,50 @@ class LineFits:
         self.fit_model.create_fit_dataframe(self.selected_normalized_line_profiles)
     
     def plot_fits_and_profiles(self):
-        # Create a figure with two columns and as many rows as there are normalized_line_profiles
         n_profiles = len(self.selected_normalized_line_profiles)
-        fig, axs = plt.subplots(n_profiles, 2, figsize=(LineFits.cm_to_inch(18), n_profiles*LineFits.cm_to_inch(7)), sharey='row', squeeze=False)
+        fig, axs = plt.subplots(n_profiles, 2, figsize=(cm_to_inch(18), n_profiles*cm_to_inch(7)), sharey='row', squeeze=False)
 
         for i, (selected_lane_index, selected_label, optimized_parameters) in enumerate(self.fit_model.fitted_peaks):
             x = np.arange(len(self.selected_normalized_line_profiles[selected_lane_index]))
 
-            # Plot the normalized_line_profile in the left subplot
-            axs[i, 0].plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.5)
-            axs[i, 0].set_title(f'Normalized Line Profile - {selected_label}')
-            axs[i, 0].set_xlabel('Pixel')
-            axs[i, 0].set_ylabel('Intensity normalized to area')
+            self.plot_left_subplot(axs[i, 0], x, selected_lane_index, selected_label, optimized_parameters)
+            self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label) # added selected_label
 
-            # Plot the sum of all peaks fitted for this line profile in the left subplot
-            axs[i, 0].plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
-            
-            # Plot all the peaks fitted for this line profile in the right subplot
-            for j in range(0, len(optimized_parameters), self.fit_model.params_per_peak()):
-                optimized_parameters_structured = optimized_parameters[j:j+self.fit_model.params_per_peak()]
-                axs[i, 1].plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured), label=f'Band {j//3 + 1}')
-
-            axs[i, 1].set_title(f'Fitted Peaks - {selected_label}')
-
-            # Plot the original normalized_line_profile in the right subplot
-            axs[i, 1].plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.5)
-            axs[i, 1].set_xlabel('Pixel')
-            
-            # Remove the y-axis label and ticks of the right plots
-            axs[i, 1].set_ylabel('')
-            axs[i, 1].yaxis.set_tick_params(left=False, labelleft=False)
-
-            # Create x-axis ticks on the top of the plot, at the maxima of each fit
-            maxima_positions = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, "maxima_position"].values
-            axs[i, 1].xaxis.set_ticks(maxima_positions)
-            axs[i, 1].xaxis.set_ticks_position('top')
-            axs[i, 1].xaxis.set_label_position('top')
-
-            # Label those peak ticks with the relative peak area
-            relative_areas = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, 'relative_area'].values
-            labels = [f"{int(np.round((area * 100), 0))} %" for area in relative_areas]
-            axs[i, 1].set_xticklabels(labels)
-
-            # Rotate the x-axis labels if they overlap
-            plt.setp(axs[i, 1].xaxis.get_majorticklabels(), rotation=90)
-
-            # Remove the label of the x-axis of the right plots
-            axs[i, 1].set_xlabel('')
-        
         plt.tight_layout()
         plt.show()
         if self.save:
             fig.savefig(self.save_name_fits)
-            
+
+    def plot_left_subplot(self, ax, x, selected_lane_index, selected_label, optimized_parameters):
+        ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.5)
+        ax.set_title(f'Normalized Line Profile - {selected_label}')
+        ax.set_xlabel('Pixel')
+        ax.set_ylabel('Intensity normalized to area')
+        ax.plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
+
+    def plot_right_subplot(self, ax, x, selected_lane_index, optimized_parameters, selected_label): # added selected_label
+        for j in range(0, len(optimized_parameters), self.fit_model.params_per_peak()):
+            optimized_parameters_structured = optimized_parameters[j:j+self.fit_model.params_per_peak()]
+            ax.plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured), label=f'Band {j//3 + 1}')
+
+        ax.set_title(f'Fitted Peaks - {selected_label}') # now selected_label is defined in the function scope
+        ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.5)
+        ax.set_xlabel('Pixel')
+        self.format_right_subplot(ax, selected_lane_index)
+
+    def format_right_subplot(self, ax, selected_lane_index):
+        ax.set_ylabel('')
+        ax.yaxis.set_tick_params(left=False, labelleft=False)
+        maxima_positions = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, "maxima_position"].values
+        ax.xaxis.set_ticks(maxima_positions)
+        ax.xaxis.set_ticks_position('top')
+        ax.xaxis.set_label_position('top')
+        relative_areas = self.fit_model.fit_df.loc[self.fit_model.fit_df['selected_lane_index'] == selected_lane_index, 'relative_area'].values
+        labels = [f"{int(np.round((area * 100), 0))} %" for area in relative_areas]
+        ax.set_xticklabels(labels)
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
+        ax.set_xlabel('')
+    
     def display_dataframe(self):
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
@@ -80,3 +71,4 @@ class LineFits:
         pd.set_option('display.colheader_justify', 'center')
         pd.set_option('display.precision', 3)
         display(self.fit_model.fit_df)
+
