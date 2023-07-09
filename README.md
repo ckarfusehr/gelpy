@@ -1,7 +1,12 @@
 ## To - do before making public:
 
 Build dashboard from background removal dashboard, by inlcuding the plot ussed to setup label positions and band widths.
+allow extraction of non-normalized, raw intensity values.
+remove the red boundary of the line width boxes, instead draw one line where the tick is and darken the outside areas.
+Add pixel axis on the y-bottom scale for the setp gel image.
+The setup function should have a keyword (remove_background=False), which, when set to true, plots the plot now plotted by remove background, but with the setup gel in the top left and the bg gel in the top right.
 
+extract magic numbers and strings to the top of each class file, using GPT.
 ### Write tests
 
 * learn what the heck good tests are
@@ -43,6 +48,7 @@ self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calcula
 * Smooth the data considerably before detecting and determining peaks.
 * add util functions to crop, splot and rotate images. So people can come in directly with their recorded images.
 * when setting up the label positions and widths, instead of drawing red rectangles on top, Just set all non-selected pixels to 0.1 transparency. Then peopl can directly see what is selected.
+* Include some logfile, or yaml file, which saves all the used parameters for quantitative data extraction in a seperate text file. This allows ultimate reproducability.
 
 ### Publish to pypi and conda
 
