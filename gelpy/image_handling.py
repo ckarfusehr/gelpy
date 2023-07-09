@@ -22,7 +22,9 @@ class Image:
         
         # setup_classs:
         self.read_gel_image()
-        self.process_path_and_create_file_names_for_saving()        
+        self.process_path_and_create_file_names_for_saving()
+        self.adjust_img_contrast_non_linear()
+        self.adjust_img_contrast_linear()     
     
     def show_raw_image(self):
         plt.imshow(self.gel_image, cmap='gray')

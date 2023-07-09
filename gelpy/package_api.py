@@ -8,6 +8,14 @@ class AgaroseGel:
     def __init__(self, path):
         self.path = path
         
+    # def setup_gel(self, labels, x_label_pos, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),
+    #                         img_height_factor=0.005, label_rotation=45, save=False, show_type="non_linear",
+    #                         line_profile_width=None):
+        
+    #     self.Image = Image(self.path, labels, x_label_pos, label_rotation,
+    #                        img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)  
+        
+        
     def setup_gel(self, labels, x_label_pos, gamma=0.1, gain=1, intensity_range=(0.05, 0.95),
                              img_height_factor=0.005, label_rotation=45, save=False, show_type="non_linear",
                              line_profile_width=None):
@@ -15,15 +23,13 @@ class AgaroseGel:
         
         self.Image = Image(self.path, labels, x_label_pos, label_rotation,
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
-        self.Image.adjust_img_contrast_non_linear()
-        self.Image.adjust_img_contrast_linear()
         self.x_label_positions = self.Image.plot_adjusted_gels(show_type, save)
         self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calculation from plotting function
-        self.labels = labels
+        self.labels = labels # rather use self.Image.labels and self.Image.x_label_pos?
         
         # Utility functions for setting up gel well.
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
-        self.Image.color_line_profile_area(self.global_line_profile_width, alpha=0.05, color="g")
+        self.Image.color_line_profile_area(self.global_line_profile_width, color="r")
         return
     
     def remove_background(self, model="2d_plane_fit", model_input=None):
@@ -43,8 +49,6 @@ class AgaroseGel:
         image_for_display = Image(self.path, self.labels, self.x_label_pos, label_rotation, #extract the passing of x_label_pos here?
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
         
-        image_for_display.adjust_img_contrast_non_linear()
-        image_for_display.adjust_img_contrast_linear()
         image_for_display.plot_adjusted_gels(show_type, save)
         return
     
