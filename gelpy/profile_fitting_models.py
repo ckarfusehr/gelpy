@@ -77,21 +77,28 @@ class FitModel(ABC):
 
     def create_fit_dataframe(self, selected_normalized_line_profiles):
         data = []
+
         for i, (selected_lane_index, label, params) in enumerate(self.fitted_peaks):
             total_area = 0
-            # Calculate parameter of each peak and create a new row for each peak
+            temp_data = []
+
             for band_number, j in enumerate(range(0, len(params), self.params_per_peak())): 
                 area = self.peak_area(*params[j:j+self.params_per_peak()], start=0, end=len(selected_normalized_line_profiles[i]))
                 total_area += area
-                relative_area = area / total_area
                 maxima_position = self.find_single_peak_maxima(*params[j:j+self.params_per_peak()])
-                peak_data = [selected_lane_index, label, band_number, relative_area, maxima_position, *params[j:j+self.params_per_peak()]]
+                peak_data = [selected_lane_index, label, band_number, area, maxima_position, *params[j:j+self.params_per_peak()]]
+                temp_data.append(peak_data)
+                
+            for peak_data in temp_data:
+                # Update area to be the relative area
+                peak_data[3] /= total_area
                 data.append(peak_data)
 
         # Create a DataFrame from the data
         columns = ["selected_lane_index", "label", "band_number", "relative_area", "maxima_position"] + self.param_labels()
         self.fit_df = pd.DataFrame(data, columns=columns)
         return self.fit_df
+
 
     @abstractmethod
     def param_labels(self):

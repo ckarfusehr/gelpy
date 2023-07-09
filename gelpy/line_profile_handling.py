@@ -16,7 +16,7 @@ class LineProfiles:
 
     def _get_lane_indices(self):
         if self.select_lanes == "all":
-            return range(len(self.labels))
+            return list(range(len(self.labels)))
         elif isinstance(self.select_lanes, list):
             if all(isinstance(i, int) for i in self.select_lanes):
                 return self.select_lanes
@@ -24,8 +24,11 @@ class LineProfiles:
                 return [i for i, label in enumerate(self.labels) if label in self.select_lanes]
         elif isinstance(self.select_lanes, str):
             return [i for i, label in enumerate(self.labels) if label == self.select_lanes]
+        elif isinstance(self.select_lanes, range):
+            return list(self.select_lanes)
         else:
             raise ValueError("Invalid value for select_lanes.")
+
 
     def extract_line_profiles(self):
         indices = self._get_lane_indices()
