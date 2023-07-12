@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from .utility_functions import cm_to_inch
+import re
 
 class LineProfiles:
     def __init__(self, gel_image, labels, x_label_positions, select_lanes, slice_line_profile_length, normalization_type,
@@ -18,12 +19,15 @@ class LineProfiles:
         if self.select_lanes == "all":
             return list(range(len(self.labels)))
         elif isinstance(self.select_lanes, list):
-            if all(isinstance(i, int) for i in self.select_lanes):
-                return self.select_lanes
-            elif all(isinstance(i, str) for i in self.select_lanes):
-                return [i for i, label in enumerate(self.labels) if label in self.select_lanes]
+            indices = []
+            for i in self.select_lanes:
+                if isinstance(i, int):
+                    indices.append(i)
+                elif isinstance(i, str):
+                    indices.extend([j for j, label in enumerate(self.labels) if re.search(i, label)])
+            return list(set(indices))  # Remove duplicates by converting to a set and then back to a list
         elif isinstance(self.select_lanes, str):
-            return [i for i, label in enumerate(self.labels) if label == self.select_lanes]
+            return [i for i, label in enumerate(self.labels) if re.search(self.select_lanes, label)]
         elif isinstance(self.select_lanes, range):
             return list(self.select_lanes)
         else:
@@ -102,4 +106,4 @@ class LineProfiles:
     def plot_raw_intensity(self, axis, x_axis, line_profile):
         axis.plot(x_axis, line_profile, color='none')
         axis.set(ylabel="raw intensity")
-        axis.yaxis.set_tick_params(labelleft=False)  # Hide the right y-axis labels
+        axis.yaxis.set_tick_params(labelleft=False)  # Hide the right y-axis label
