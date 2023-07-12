@@ -64,14 +64,17 @@ class LineFits:
         plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
         ax.set_xlabel('')
     
-    def display_dataframe(self, show_df):
+    def display_dataframe(self, show_df, save_df, df_save_name):
+        
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', 1000)
+        pd.set_option('display.colheader_justify', 'center')
+        pd.set_option('display.precision', 3)
+        
         if show_df == True:
-            pd.set_option('display.max_rows', None)
-            pd.set_option('display.max_columns', None)
-            pd.set_option('display.width', 1000)
-            pd.set_option('display.colheader_justify', 'center')
-            pd.set_option('display.precision', 3)
             display(self.fit_model.fit_df)
+        if save_df == True:
+            self.fit_model.fit_df.to_csv(df_save_name, index=False)
         else:
             return
-

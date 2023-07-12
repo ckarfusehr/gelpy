@@ -73,11 +73,12 @@ class AgaroseGel:
     def show_line_profiles(self, select_lanes="all", slice_line_profile_length=(0,-1),
                            fit=None, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False,
                            normalization_type="area", save=False, save_name_overview="selected_line_profiles.svg",
-                           save_name_fits="selected_fitted_profiles.svg", show_df=True, show_cumulative_lane_plot=True):
+                           save_name_fits="selected_fitted_profiles.svg", show_df=True, save_df=False,
+                           df_save_name="selected_fitted_params.csv", show_cumulative_lane_plot=True):
         
         self.init_line_profiles(select_lanes, slice_line_profile_length, normalization_type,
                                 save, save_name_overview, show_cumulative_lane_plot)
-        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, plot_fits, save, save_name_fits, show_df)
+        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, plot_fits, save, save_name_fits, show_df, save_df, df_save_name)
 
     def init_line_profiles(self, select_lanes, slice_line_profile_length, normalization_type, save, save_name_overview, show_cumulative_lane_plot):
         self.LineProfiles = LineProfiles(self.Image.gel_image, self.labels, self.x_label_positions,
@@ -89,7 +90,7 @@ class AgaroseGel:
         if show_cumulative_lane_plot:
             self.LineProfiles.plot_selected_line_profiles()
 
-    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, plot_fits, save, save_name_fits, show_df):
+    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, plot_fits, save, save_name_fits, show_df, save_df, df_save_name):
         if fit is None:
             return
         elif fit == GAUSSIAN_FIT_NAME:
@@ -104,7 +105,7 @@ class AgaroseGel:
         self.LineFits = LineFits(fit_model, self.LineProfiles.selected_line_profiles_normalized, self.LineProfiles.selected_labels,
                                  maxima_threshold, maxima_prominence, save, save_name_fits)
         self.LineFits.fit()
-        self.LineFits.display_dataframe(show_df)
+        self.LineFits.display_dataframe(show_df, save_df, df_save_name)
         
         if plot_fits:
             self.LineFits.plot_fits_and_profiles()
