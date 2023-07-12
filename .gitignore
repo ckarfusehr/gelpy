@@ -1,4 +1,6 @@
 #
+*.csv
+temp.py
 *.png
 *.svg
 *.pyc
