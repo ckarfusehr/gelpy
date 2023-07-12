@@ -6,6 +6,20 @@ from matplotlib.gridspec import GridSpec
 
 class PlaneFit2d(BackgroundHandler):
     def __init__(self, image, model_input):
+        """
+        Initialize the PlaneFit2d class.
+
+        Parameters
+        ----------
+        image : np.array
+            Input image to process.
+        model_input : tuple
+            Tuple of tuples. Each inner tuple contains stripe position and height.
+
+        Returns
+        -------
+        None.
+        """
         super().__init__(image)
         self.inlier_mask = None
         self.reconstructed_bg = None
@@ -17,11 +31,41 @@ class PlaneFit2d(BackgroundHandler):
         self.bottom_stripe_data = self.get_stripe_data(*self.model_input[1])
     
     def get_stripe_data(self, stripe_position, stripe_height):
+        """
+        Get the stripe data from the image.
+
+        Parameters
+        ----------
+        stripe_position : int
+            Starting position of the stripe.
+        stripe_height : int
+            Height of the stripe.
+
+        Returns
+        -------
+        stripe : np.array
+            Stripe data from the image.
+        X : np.array
+            Array of x coordinates.
+        Y : np.array
+            Array of y coordinates.
+        """
         stripe = self.image[stripe_position:stripe_position + stripe_height, :]
         X, Y = np.meshgrid(np.arange(stripe.shape[1]), np.arange(stripe_position, stripe_position + stripe_height))
         return stripe, X, Y
 
     def extract_fit_data_from_image(self):
+        """
+        Extract the fit data from the image.
+
+        Parameters
+        ----------
+        None.
+
+        Returns
+        -------
+        None.
+        """
         top_stripe, X_top, Y_top = self.top_stripe_data
         bottom_stripe, X_bottom, Y_bottom = self.bottom_stripe_data
 
@@ -29,14 +73,46 @@ class PlaneFit2d(BackgroundHandler):
         self.fit_data_X = np.concatenate((X_top.ravel(), X_bottom.ravel()))
         self.fit_data_Y = np.concatenate((Y_top.ravel(), Y_bottom.ravel()))
 
-
     def compute_new_image(self, image, params, X, Y):
+        """
+        Compute the new image after removing the background.
+
+        Parameters
+        ----------
+        image : np.array
+            The original image.
+        params : list
+            The parameters for the background plane.
+        X : np.array
+            Array of x coordinates.
+        Y : np.array
+            Array of y coordinates.
+
+        Returns
+        -------
+        new_image : np.array
+            The new image after background removal.
+        bg_plane : np.array
+            The background plane.
+        """
         bg_plane = params[0]*X + params[1]*Y + params[2]  # Reconstruct the background plane
         new_image = image - bg_plane
         new_image[new_image < 0] = 0  # clip negative values to zero
         return new_image, bg_plane
 
     def compute_overlay(self):
+        """
+        Compute the overlay for visualizing the stripes.
+
+        Parameters
+        ----------
+        None.
+
+        Returns
+        -------
+        overlay : np.array
+            The overlay image.
+        """
         # Create an RGBA image with the same size as the original image
         overlay = np.zeros((self.y_len_img, self.x_len_img, 4))
 
@@ -47,8 +123,30 @@ class PlaneFit2d(BackgroundHandler):
         # Set color of the stripes to red
         overlay[:, :, 0] = 1
         return overlay
-
     def plot_image_with_overlay(self, fig, gs, image, overlay, vmin, vmax):
+        """
+        Plot the image with overlay.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+            Figure object to plot on.
+        gs : matplotlib.gridspec.GridSpec
+            GridSpec object for the figure.
+        image : np.array
+            The image to plot.
+        overlay : np.array
+            The overlay to apply on the image.
+        vmin : float
+            Minimum value for the colormap.
+        vmax : float
+            Maximum value for the colormap.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            The Axes object for the plot.
+        """
         ax = fig.add_subplot(gs[0:2, 0:5])
         ax.imshow(image, cmap='gray', vmin=vmin, vmax=vmax)
         ax.imshow(overlay)
@@ -56,6 +154,21 @@ class PlaneFit2d(BackgroundHandler):
         return ax
 
     def plot_histogram(self, fig, gs):
+        """
+        Plot the histogram of pixel intensities.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+            Figure object to plot on.
+        gs : matplotlib.gridspec.GridSpec
+            GridSpec object for the figure.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            The Axes object for the plot.
+        """
         ax = fig.add_subplot(gs[0:2, 5:10])
         for color, stripe_data in zip(['red', 'blue'], [self.top_stripe_data[0], self.bottom_stripe_data[0]]):
             ax.hist(stripe_data.flatten(), bins=100, color=color, alpha=0.5, label=f'{color.capitalize()} Stripe')
@@ -64,6 +177,31 @@ class PlaneFit2d(BackgroundHandler):
         return ax
 
     def plot_profiles(self, fig, gs, row, i, original_slice, bg_slice, new_slice):
+        """
+        Plot the row-averaged profiles for original, background and new slices.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+            Figure object to plot on.
+        gs : matplotlib.gridspec.GridSpec
+            GridSpec object for the figure.
+        row : int
+            Row index for the subplot.
+        i : int
+            Column index for the subplot.
+        original_slice : np.array
+            Slice of the original image.
+        bg_slice : np.array
+            Slice of the background image.
+        new_slice : np.array
+            Slice of the new image.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            The Axes object for the plot.
+        """
         # Compute the row-averaged profiles
         original_profile = original_slice.mean(axis=1)
         bg_profile = bg_slice.mean(axis=1)
@@ -79,6 +217,26 @@ class PlaneFit2d(BackgroundHandler):
         return ax
 
     def calculate_and_plot_slices(self, slice_indices, bg_plane, new_image, gs, fig):
+        """
+        Calculate and plot the slices of the image.
+
+        Parameters
+        ----------
+        slice_indices : np.array
+            Indices of the slices.
+        bg_plane : np.array
+            The background plane.
+        new_image : np.array
+            The new image after background removal.
+        gs : matplotlib.gridspec.GridSpec
+            GridSpec object for the figure.
+        fig : matplotlib.figure.Figure
+            Figure object to plot on.
+
+        Returns
+        -------
+        None.
+        """
         for i in range(10):
             start, end = slice_indices[i], slice_indices[i+1]
             original_slice = self.image[:, start:end]
@@ -90,6 +248,17 @@ class PlaneFit2d(BackgroundHandler):
 
 
     def visualize_fit_data(self):
+        """
+        Visualize the fit data.
+
+        Parameters
+        ----------
+        None.
+
+        Returns
+        -------
+        None.
+        """
         X, Y = np.meshgrid(np.arange(self.x_len_img), np.arange(self.y_len_img))
         new_image, bg_plane = self.compute_new_image(self.image, self.params, X, Y)
 
@@ -113,6 +282,17 @@ class PlaneFit2d(BackgroundHandler):
         plt.show()
 
     def fit_model_to_data(self):
+        """
+        Fit the model to the data.
+
+        Parameters
+        ----------
+        None.
+
+        Returns
+        -------
+        None.
+        """
         # Stack X and Y into the data array
         data = np.c_[self.fit_data_X, self.fit_data_Y]
 
@@ -126,125 +306,3 @@ class PlaneFit2d(BackgroundHandler):
         
         X, Y = np.meshgrid(np.arange(self.x_len_img), np.arange(self.y_len_img))
         self.reconstructed_bg = self.params[0]*X + self.params[1]*Y + self.params[2]
-             
-        
-## Old implementation, fitting only along the y-axis:
-
-# class TopBottomPlaneFit:
-#     def __init__(self, image):
-#         self.image = image
-
-#     def extract_fit_data_from_image(self, top_stripe_height, top_stripe_position, bottom_stripe_height, bottom_stripe_position):
-#         top_stripe = self.image[top_stripe_position:top_stripe_position+top_stripe_height, :]
-#         bottom_stripe = self.image[bottom_stripe_position:bottom_stripe_position+bottom_stripe_height, :]
-        
-#         # Compute median values along the x-axis for each row in the top and bottom stripes
-#         top_stripe_medians = np.median(top_stripe, axis=1)
-#         bottom_stripe_medians = np.median(bottom_stripe, axis=1)
-
-#         # The corresponding Y coordinates are just the row indices
-#         Y_top = np.arange(top_stripe_position, top_stripe_position+top_stripe_height)
-#         Y_bottom = np.arange(bottom_stripe_position, bottom_stripe_position+bottom_stripe_height)
-
-#         # Concatenate the median values and their Y coordinate arrays
-#         self.fit_data = np.concatenate((top_stripe_medians, bottom_stripe_medians))
-#         self.fit_data_Y = np.concatenate((Y_top, Y_bottom))
-
-
-#         # Debugging: display original image with stripes overlayed in red
-#         # Create an RGBA image with the same size as the original image
-#         overlay = np.zeros((self.image.shape[0], self.image.shape[1], 4))
-
-#         # Set alpha (transparency) to 0.5 for the stripes, 0 elsewhere
-#         overlay[top_stripe_position:top_stripe_position+top_stripe_height, :, 3] = 0.5
-#         overlay[bottom_stripe_position:bottom_stripe_position+bottom_stripe_height, :, 3] = 0.5
-
-#         # Set color of the stripes to red
-#         overlay[:, :, 0] = 1
-
-#         # Determine the 2nd and 98th percentiles of the image data
-#         vmin, vmax = np.percentile(self.image, [2, 98])
-
-#         fig, ax = plt.subplots(1, 2, figsize=(15, 5)) # New line to create a subplot
-
-#         ax[0].imshow(self.image, cmap='gray', vmin=vmin, vmax=vmax) # Changed from plt.imshow to ax[0].imshow
-#         ax[0].imshow(overlay)
-#         ax[0].set_title('Original image with stripes used for fitting')
-
-#         # New lines to plot histograms
-#         #ax[1].hist(self.image.flatten(), bins=100, color='gray', alpha=0.5, label='Entire Image')  # Entire image histogram
-#         ax[1].hist(top_stripe.flatten(), bins=100, color='red', alpha=0.5, label='Top Stripe')  # Top stripe histogram
-#         ax[1].hist(bottom_stripe.flatten(), bins=100, color='blue', alpha=0.5, label='Bottom Stripe')  # Bottom stripe histogram
-#         ax[1].set_title('Pixel Intensity Distribution')
-#         ax[1].legend()
-
-#         plt.tight_layout()
-#         plt.show()
-
-#     def extract_background(self):
-#         # Fit line using RANSAC
-#         ransac = RANSACRegressor(base_estimator=LinearRegression(fit_intercept=True),
-#                                  random_state=0)
-#         ransac.fit(self.fit_data_Y.reshape(-1, 1), self.fit_data)
-
-#         # Extract the parameters of the fitted line
-#         self.params = [ransac.estimator_.coef_[0], ransac.estimator_.intercept_]
-#         self.inlier_mask = ransac.inlier_mask_
-
-
-
-#     def remove_background(self, show_new_image=False):
-#         y_len, x_len = self.image.shape
-#         Y = np.arange(y_len).reshape(-1, 1)
-#         line_z = self.params[0]*Y + self.params[1]
-#         line_z_broadcasted = np.broadcast_to(line_z, (y_len, x_len))
-#         self.new_image = self.image - line_z_broadcasted
-
-#         # clipping negative values to zero
-#         self.new_image[self.new_image < 0] = 0
-
-#         if show_new_image:
-#                     # Determine the 2nd and 98th percentiles of the image data
-#             vminnew_img, vmaxnew_img = np.percentile(self.new_image, [1, 99])
-#             plt.imshow(self.new_image, cmap='gray', vmin=vminnew_img, vmax=vmaxnew_img)
-#             plt.title('Image after background subtraction')
-#             plt.show()
-
-#         return self.new_image
-    
-#     def visualize_profiles(self):
-#         y_len, x_len = self.image.shape
-#         Y = np.arange(y_len).reshape(-1, 1)
-#         bg_line = self.params[0]*Y + self.params[1]  # Reconstruct the background line
-#         bg_line_broadcasted = np.broadcast_to(bg_line, (y_len, x_len))
-
-#         # Compute the new image
-#         new_image = self.image - bg_line_broadcasted
-#         new_image[new_image < 0] = 0  # clip negative values to zero
-
-#         # Define the slices
-#         slice_indices = np.linspace(0, x_len, 11).astype(int)  # Returns 11 points, but we will use it as start/end indices for 10 slices
-
-#         fig, axs = plt.subplots(2, 5, figsize=(20, 8))  # Adjust size as needed
-#         axs = axs.flatten()  # So we can iterate over the axes in a single loop
-
-#         for i in range(10):
-#             start, end = slice_indices[i], slice_indices[i+1]
-#             original_slice = self.image[:, start:end]
-#             bg_slice = bg_line_broadcasted[:, start:end]
-#             new_slice = new_image[:, start:end]  # New line
-
-#             # Compute the row-averaged profiles
-#             original_profile = original_slice.mean(axis=1)
-#             bg_profile = bg_slice.mean(axis=1)
-#             new_profile = new_slice.mean(axis=1)  # New line
-
-#             # Plot the profiles
-#             axs[i].plot(original_profile, label='Original')
-#             axs[i].plot(bg_profile, label='Background')
-#             axs[i].plot(new_profile, label='New')  # New line
-#             axs[i].legend()
-#             axs[i].set_title(f'Slice {i+1}')
-
-#         plt.tight_layout()
-#         plt.show()
