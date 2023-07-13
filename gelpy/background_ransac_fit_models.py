@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import RANSACRegressor, LinearRegression
 from matplotlib.gridspec import GridSpec
+import matplotlib.patches as patches
 
 class PlaneFit2d(BackgroundHandler):
     def __init__(self, image, model_input):
@@ -118,11 +119,12 @@ class PlaneFit2d(BackgroundHandler):
 
         # Set alpha (transparency) to 0.5 for the stripes, 0 elsewhere
         for stripe_position, stripe_height in self.model_input:
-            overlay[stripe_position:stripe_position + stripe_height, :, 3] = 0.5
+            overlay[stripe_position:stripe_position + stripe_height, :, 3] = 0.9
 
         # Set color of the stripes to red
         overlay[:, :, 0] = 1
         return overlay
+    
     def plot_image_with_overlay(self, fig, gs, image, overlay, vmin, vmax):
         """
         Plot the image with overlay.
@@ -147,36 +149,14 @@ class PlaneFit2d(BackgroundHandler):
         ax : matplotlib.axes.Axes
             The Axes object for the plot.
         """
-        ax = fig.add_subplot(gs[0:2, 0:5])
+        ax = fig.add_subplot(gs[0:1, :]) # gs[0:2, :] -> this takes all columns in first two rows
         ax.imshow(image, cmap='gray', vmin=vmin, vmax=vmax)
         ax.imshow(overlay)
-        ax.set_title('Original image with stripes used for fitting')
+        ax.set_title('Image with stripes used for background plane fitting')
         return ax
 
-    def plot_histogram(self, fig, gs):
-        """
-        Plot the histogram of pixel intensities.
 
-        Parameters
-        ----------
-        fig : matplotlib.figure.Figure
-            Figure object to plot on.
-        gs : matplotlib.gridspec.GridSpec
-            GridSpec object for the figure.
-
-        Returns
-        -------
-        ax : matplotlib.axes.Axes
-            The Axes object for the plot.
-        """
-        ax = fig.add_subplot(gs[0:2, 5:10])
-        for color, stripe_data in zip(['red', 'blue'], [self.top_stripe_data[0], self.bottom_stripe_data[0]]):
-            ax.hist(stripe_data.flatten(), bins=100, color=color, alpha=0.5, label=f'{color.capitalize()} Stripe')
-        ax.set_title('Pixel Intensity Distribution')
-        ax.legend()
-        return ax
-
-    def plot_profiles(self, fig, gs, row, i, original_slice, bg_slice, new_slice):
+    def plot_profiles(self, fig, gs, row, col, original_slice, bg_slice, new_slice):
         """
         Plot the row-averaged profiles for original, background and new slices.
 
@@ -188,7 +168,7 @@ class PlaneFit2d(BackgroundHandler):
             GridSpec object for the figure.
         row : int
             Row index for the subplot.
-        i : int
+        col : int
             Column index for the subplot.
         original_slice : np.array
             Slice of the original image.
@@ -208,13 +188,14 @@ class PlaneFit2d(BackgroundHandler):
         new_profile = new_slice.mean(axis=1)
 
         # Plot the profiles
-        ax = fig.add_subplot(gs[row, i*2:i*2+2])
+        ax = fig.add_subplot(gs[row, col]) # We modify this line to assign subplot to proper row and column
         ax.plot(original_profile, label='Original')
         ax.plot(bg_profile, label='Background')
         ax.plot(new_profile, label='New') 
         ax.legend()
-        ax.set_title(f'Slice {i+1}')
+        ax.set_title(f'Slice {col+1}') # We modify the slice index from col+1 instead of i+1
         return ax
+
 
     def calculate_and_plot_slices(self, slice_indices, bg_plane, new_image, gs, fig):
         """
@@ -237,14 +218,14 @@ class PlaneFit2d(BackgroundHandler):
         -------
         None.
         """
-        for i in range(10):
+        for i in range(6): # Calculate only 6 slices
             start, end = slice_indices[i], slice_indices[i+1]
             original_slice = self.image[:, start:end]
             bg_slice = bg_plane[:, start:end]
             new_slice = new_image[:, start:end]
-            
-            row = 2 if i < 5 else 3  # Calculate row based on i
-            self.plot_profiles(fig, gs, row, i % 5, original_slice, bg_slice, new_slice)
+
+            row = 1 if i < 3 else 2  # Calculate row based on i
+            self.plot_profiles(fig, gs, row, i % 3, original_slice, bg_slice, new_slice) # We modify the column calculation as i % 3 
 
 
     def visualize_fit_data(self):
@@ -263,18 +244,17 @@ class PlaneFit2d(BackgroundHandler):
         new_image, bg_plane = self.compute_new_image(self.image, self.params, X, Y)
 
         # Define the slices
-        slice_indices = np.linspace(0, self.x_len_img, 11).astype(int)  # Returns 11 points, but we will use it as start/end indices for 10 slices
+        slice_indices = np.linspace(0, self.x_len_img, 7).astype(int)  # We modify this line to return 7 points (for 6 slices)
 
         fig = plt.figure(figsize=(20, 16))  # Adjust size as needed
-        gs = GridSpec(4, 10, figure=fig)
+        gs = GridSpec(3, 3, figure=fig) # We modify the GridSpec to have 3 rows and 3 columns
 
         overlay = self.compute_overlay()
 
         # Determine the 2nd and 98th percentiles of the image data
-        vmin, vmax = np.percentile(self.image, [2, 98])
+        vmin, vmax = np.percentile(self.image, [5, 95])
 
         self.plot_image_with_overlay(fig, gs, self.image, overlay, vmin, vmax)
-        self.plot_histogram(fig, gs)
 
         self.calculate_and_plot_slices(slice_indices, bg_plane, new_image, gs, fig)
 

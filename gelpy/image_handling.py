@@ -58,9 +58,6 @@ class Image:
             img_adjusted_linear = self.gel_image
         self.lin_contrast_adjusted = img_adjusted_linear
     
-
-
-
     def setup_figure(self, show_type):
         SINGLE_GEL_HEIGHT = 10 #cm
         TWO_GELS_HEIGHT = 18 #cm
@@ -135,7 +132,8 @@ class Image:
         self.adjusted_gel_fig = fig
         self.adjusted_gel_axes = axes
         
-        return self.x_label_positions
+        return
+
 
     def save_figure(self, fig, file_path):
         fig.savefig(file_path, bbox_inches='tight')

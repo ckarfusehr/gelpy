@@ -31,25 +31,27 @@ class AgaroseGel:
         """Has to be used as the first function after initiating the Gel"""
         
         self.init_image(labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation)
-        if remove_bg == False:
-            self.plot_and_adjust_gels(show_type, save)
-            self.setup_line_profile(line_profile_width)
-        elif remove_bg == True:
+
+        self.plot_and_adjust_gels(show_type, save)
+        self.setup_line_profile(line_profile_width)
+        
+        if remove_bg == True:
             self.remove_background(bg_model=bg_model, bg_model_input=bg_model_input)
 
     def show_adjusted_images(self, save=True, show_type="both"):
         self.plot_and_adjust_gels(show_type, save)
+
+    def plot_and_adjust_gels(self, show_type, save):
+        self.Image.plot_adjusted_gels(show_type, save)
 
     def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation):
         self.Image = Image(self.path, labels, x_label_pos, label_rotation,
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
         self.labels = labels
         self.x_label_pos = x_label_pos 
-
-    def plot_and_adjust_gels(self, show_type, save):
-        self.x_label_positions = self.Image.plot_adjusted_gels(show_type, save)
         
     def setup_line_profile(self, line_profile_width):
+        self.x_label_positions = self.Image.x_label_positions #move to setup_line_profile
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
         self.Image.color_line_profile_area(self.global_line_profile_width, color="r")
     
