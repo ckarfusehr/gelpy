@@ -81,7 +81,6 @@ class LineProfiles:
         else:
             n = len(x_label_positions)
             line_profile_width = int(gel_image.shape[1] / (n * 2.5)) #2.5 is heuristic value, and depends on the gelcomb used
-            print(f"Used line width: {line_profile_width} px, with a gel width of: {gel_image.shape[1]} px, and {n} xlabel positions")
             return line_profile_width      
 
     def plot_selected_line_profiles(self):
