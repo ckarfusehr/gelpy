@@ -154,6 +154,10 @@ class PlaneFit2d(BackgroundHandler):
         sns.lineplot(data=bg_profile, label='Background', ax=ax, color="gray", alpha=0.8)
         sns.lineplot(data=new_profile, label='Corrected', ax=ax, color="green", alpha=0.8)
         
+        # Calculate and set y-axis upper limit
+        y_upper_limit = 6 * bg_profile.mean()
+        ax.set_ylim(0,y_upper_limit)
+
         # Set title only for the middle plot in the second row
         if row == 1 and col == 1:
             ax.set_title('Visual background fit validation')
@@ -172,6 +176,7 @@ class PlaneFit2d(BackgroundHandler):
         ax.yaxis.set_ticks([]) # This line removes y-axis ticks
 
         return ax
+
 
     def calculate_and_plot_slices(self, slice_indices, bg_plane, new_image, gs, fig):
         shared_ax = None
