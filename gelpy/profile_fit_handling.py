@@ -28,7 +28,7 @@ class LineFits:
             x = np.arange(len(self.selected_normalized_line_profiles[selected_lane_index])).astype("float64")
 
             self.plot_left_subplot(axs[i, 0], x, selected_lane_index, selected_label, optimized_parameters)
-            self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label)
+            self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label) # added selected_label
 
         # Set the figure level title
         fig.suptitle('Line profiles and fitted peaks')
@@ -42,19 +42,19 @@ class LineFits:
 
 
     def plot_left_subplot(self, ax, x, selected_lane_index, selected_label, optimized_parameters):
-        sns.lineplot(x=x, y=self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, ax=ax)
+        ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, zorder=0.5)
         ax.set_title(f'Normalized Line Profile - {selected_label}')
         ax.set_xlabel('Pixel')
         ax.set_ylabel('Intensity normalized to area')
-        sns.lineplot(x=x, y=self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted', ax=ax)
+        ax.plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
 
-    def plot_right_subplot(self, ax, x, selected_lane_index, optimized_parameters, selected_label):
+    def plot_right_subplot(self, ax, x, selected_lane_index, optimized_parameters, selected_label): # added selected_label
         for j in range(0, len(optimized_parameters), self.fit_model.params_per_peak()):
             optimized_parameters_structured = optimized_parameters[j:j+self.fit_model.params_per_peak()]
-            sns.lineplot(x=x, y=self.fit_model.single_peak_function(x, *optimized_parameters_structured), label=f'Band {j//3 + 1}', ax=ax)
+            ax.plot(x, self.fit_model.single_peak_function(x, *optimized_parameters_structured), label=f'Band {j//3 + 1}')
 
-        ax.set_title(f'Fitted Peaks - {selected_label}')
-        sns.lineplot(x=x, y=self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, ax=ax)
+        ax.set_title(f'Fitted Peaks - {selected_label}') # now selected_label is defined in the function scope
+        ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, zorder=0.5)
         ax.set_xlabel('Pixel')
         self.format_right_subplot(ax, selected_lane_index)
 
