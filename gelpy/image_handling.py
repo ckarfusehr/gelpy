@@ -101,14 +101,28 @@ class Image:
 
     def color_line_profile_area(self, line_profile_width, color = DEFAULT_COLOR):
         y_pos = 0
-        for x in self.x_label_positions:
-            rect_x = x - line_profile_width/2
-            rectangle_height = self.image_height
-            rectangle = patches.Rectangle((rect_x, y_pos), line_profile_width, rectangle_height,
-                                          linewidth=1, edgecolor=color, facecolor=(1,0,0,0.1))
+        previous_end_x = 0
+
+        for x in sorted(self.x_label_positions): 
+            rect_x = x - line_profile_width / 2
+            if rect_x > previous_end_x:
+                # Draw a rectangle in the gap between the previous rectangle and the current one
+                rectangle_width = rect_x - previous_end_x
+                rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
+                                            linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.7))
+                self.adjusted_gel_axes[0].add_patch(rectangle)
+
+            previous_end_x = rect_x + line_profile_width
+
+        #Draw a rectangle from the end of the last rectangle to the right edge of the plot, if necessary
+        if previous_end_x < self.image_width:
+            rectangle_width = self.image_width - previous_end_x
+            rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
+                                        linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.7))
             self.adjusted_gel_axes[0].add_patch(rectangle)
-        
+
         return
+
         
     def plot_adjusted_gels(self, show_type, save=False):
         images = {

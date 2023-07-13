@@ -53,7 +53,7 @@ class AgaroseGel:
     def setup_line_profile(self, line_profile_width):
         self.x_label_positions = self.Image.x_label_positions #move to setup_line_profile
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
-        self.Image.color_line_profile_area(self.global_line_profile_width, color="r")
+        self.Image.color_line_profile_area(self.global_line_profile_width, color="black")
     
     def remove_background(self, bg_model, bg_model_input):
         self.init_background_model(bg_model, bg_model_input)
