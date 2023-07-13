@@ -3,7 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import RANSACRegressor, LinearRegression
 from matplotlib.gridspec import GridSpec
-import matplotlib.patches as patches
+from .utility_functions import cm_to_inch
+import seaborn as sns
+
+sns.set_context("paper")
+
 
 class PlaneFit2d(BackgroundHandler):
     def __init__(self, image, model_input):
@@ -126,138 +130,73 @@ class PlaneFit2d(BackgroundHandler):
         return overlay
     
     def plot_image_with_overlay(self, fig, gs, image, overlay, vmin, vmax):
-        """
-        Plot the image with overlay.
-
-        Parameters
-        ----------
-        fig : matplotlib.figure.Figure
-            Figure object to plot on.
-        gs : matplotlib.gridspec.GridSpec
-            GridSpec object for the figure.
-        image : np.array
-            The image to plot.
-        overlay : np.array
-            The overlay to apply on the image.
-        vmin : float
-            Minimum value for the colormap.
-        vmax : float
-            Maximum value for the colormap.
-
-        Returns
-        -------
-        ax : matplotlib.axes.Axes
-            The Axes object for the plot.
-        """
-        ax = fig.add_subplot(gs[0:1, :]) # gs[0:2, :] -> this takes all columns in first two rows
+        ax = fig.add_subplot(gs[0:1, :])
         ax.imshow(image, cmap='gray', vmin=vmin, vmax=vmax)
         ax.imshow(overlay)
-        ax.set_title('Image with stripes used for background plane fitting')
+        ax.set_title('Red lines are used for background plane fitting')
+        ax.set_ylabel("[px]")
+        
+        # Remove x labels and ticks
+        ax.set_xticks([])
+        ax.set_xlabel('')
+
         return ax
 
-
-    def plot_profiles(self, fig, gs, row, col, original_slice, bg_slice, new_slice):
-        """
-        Plot the row-averaged profiles for original, background and new slices.
-
-        Parameters
-        ----------
-        fig : matplotlib.figure.Figure
-            Figure object to plot on.
-        gs : matplotlib.gridspec.GridSpec
-            GridSpec object for the figure.
-        row : int
-            Row index for the subplot.
-        col : int
-            Column index for the subplot.
-        original_slice : np.array
-            Slice of the original image.
-        bg_slice : np.array
-            Slice of the background image.
-        new_slice : np.array
-            Slice of the new image.
-
-        Returns
-        -------
-        ax : matplotlib.axes.Axes
-            The Axes object for the plot.
-        """
-        # Compute the row-averaged profiles
+    def plot_profiles(self, fig, gs, row, col, original_slice, bg_slice, new_slice, shared_ax=None):
         original_profile = original_slice.mean(axis=1)
         bg_profile = bg_slice.mean(axis=1)
         new_profile = new_slice.mean(axis=1)
+        if shared_ax is None:
+            ax = fig.add_subplot(gs[row, col])
+        else:
+            ax = fig.add_subplot(gs[row, col], sharex=shared_ax, sharey=shared_ax)
+        sns.lineplot(data=original_profile, label='Original', ax=ax, linestyle="--", color="gray", alpha=0.8)
+        sns.lineplot(data=bg_profile, label='Background', ax=ax, color="gray", alpha=0.8)
+        sns.lineplot(data=new_profile, label='Corrected', ax=ax, color="green", alpha=0.8)
+        
+        # Set title only for the middle plot in the second row
+        if row == 1 and col == 1:
+            ax.set_title('Visual background fit validation')
+        else:
+            ax.set_title('')
 
-        # Plot the profiles
-        ax = fig.add_subplot(gs[row, col]) # We modify this line to assign subplot to proper row and column
-        ax.plot(original_profile, label='Original')
-        ax.plot(bg_profile, label='Background')
-        ax.plot(new_profile, label='New') 
-        ax.legend()
-        ax.set_title(f'Slice {col+1}') # We modify the slice index from col+1 instead of i+1
+        # Remove x-ticks and labels for plots not in bottom row
+        if row != 2:
+            plt.setp(ax.get_xticklabels(), visible=False)
+        else:
+            ax.set_xlabel('[px]')
+            
+        # Remove y-ticks, y-labels, and y-axis for all plots
+        ax.set_yticklabels([])
+        ax.set_ylabel('')
+        ax.yaxis.set_ticks([]) # This line removes y-axis ticks
+
         return ax
 
-
     def calculate_and_plot_slices(self, slice_indices, bg_plane, new_image, gs, fig):
-        """
-        Calculate and plot the slices of the image.
-
-        Parameters
-        ----------
-        slice_indices : np.array
-            Indices of the slices.
-        bg_plane : np.array
-            The background plane.
-        new_image : np.array
-            The new image after background removal.
-        gs : matplotlib.gridspec.GridSpec
-            GridSpec object for the figure.
-        fig : matplotlib.figure.Figure
-            Figure object to plot on.
-
-        Returns
-        -------
-        None.
-        """
-        for i in range(6): # Calculate only 6 slices
+        shared_ax = None
+        for i in range(6):
             start, end = slice_indices[i], slice_indices[i+1]
             original_slice = self.image[:, start:end]
             bg_slice = bg_plane[:, start:end]
             new_slice = new_image[:, start:end]
-
-            row = 1 if i < 3 else 2  # Calculate row based on i
-            self.plot_profiles(fig, gs, row, i % 3, original_slice, bg_slice, new_slice) # We modify the column calculation as i % 3 
-
+            row = 1 if i < 3 else 2
+            shared_ax = self.plot_profiles(fig, gs, row, i % 3, original_slice, bg_slice, new_slice, shared_ax)
+            if i == 0:  # add legend only to the first plot
+                shared_ax.legend()
+            else:
+                shared_ax.get_legend().remove()
 
     def visualize_fit_data(self):
-        """
-        Visualize the fit data.
-
-        Parameters
-        ----------
-        None.
-
-        Returns
-        -------
-        None.
-        """
         X, Y = np.meshgrid(np.arange(self.x_len_img), np.arange(self.y_len_img))
         new_image, bg_plane = self.compute_new_image(self.image, self.params, X, Y)
-
-        # Define the slices
-        slice_indices = np.linspace(0, self.x_len_img, 7).astype(int)  # We modify this line to return 7 points (for 6 slices)
-
-        fig = plt.figure(figsize=(20, 16))  # Adjust size as needed
-        gs = GridSpec(3, 3, figure=fig) # We modify the GridSpec to have 3 rows and 3 columns
-
+        slice_indices = np.linspace(0, self.x_len_img, 7).astype(int)
+        fig = plt.figure(figsize=(cm_to_inch(18), cm_to_inch(16)))
+        gs = GridSpec(3, 3, figure=fig)
         overlay = self.compute_overlay()
-
-        # Determine the 2nd and 98th percentiles of the image data
         vmin, vmax = np.percentile(self.image, [5, 95])
-
         self.plot_image_with_overlay(fig, gs, self.image, overlay, vmin, vmax)
-
         self.calculate_and_plot_slices(slice_indices, bg_plane, new_image, gs, fig)
-
         plt.tight_layout()
         plt.show()
 
