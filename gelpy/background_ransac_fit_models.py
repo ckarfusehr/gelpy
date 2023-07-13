@@ -6,9 +6,6 @@ from matplotlib.gridspec import GridSpec
 from .utility_functions import cm_to_inch
 import seaborn as sns
 
-sns.set_context("paper")
-
-
 class PlaneFit2d(BackgroundHandler):
     def __init__(self, image, model_input):
         """

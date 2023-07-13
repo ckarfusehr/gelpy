@@ -3,6 +3,11 @@ from .line_profile_handling import LineProfiles
 from .profile_fitting_models import GaussianFitModel, EmgFitModel
 from .profile_fit_handling import LineFits
 from .background_ransac_fit_models import PlaneFit2d
+import seaborn as sns
+
+# Set figure style
+
+sns.set_context(context="paper")
 
 # Magic numbers and strings
 DEFAULT_GAMMA = 0.1
@@ -53,7 +58,7 @@ class AgaroseGel:
     def setup_line_profile(self, line_profile_width):
         self.x_label_positions = self.Image.x_label_positions #move to setup_line_profile
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
-        self.Image.color_line_profile_area(self.global_line_profile_width, color="black")
+        self.Image.color_line_profile_area(self.global_line_profile_width, color="darkred")
     
     def remove_background(self, bg_model, bg_model_input):
         self.init_background_model(bg_model, bg_model_input)

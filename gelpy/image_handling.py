@@ -5,6 +5,7 @@ import os
 import matplotlib.patches as patches
 from .utility_functions import cm_to_inch
 
+
 class Image:
     DEFAULT_COLOR = None
 
@@ -24,7 +25,7 @@ class Image:
         self.read_gel_image()
         self.process_path_and_create_file_names_for_saving()
         self.adjust_img_contrast_non_linear()
-        self.adjust_img_contrast_linear()     
+        self.adjust_img_contrast_linear()    
     
     def show_raw_image(self):
         plt.imshow(self.gel_image, cmap='gray')
@@ -58,6 +59,7 @@ class Image:
             img_adjusted_linear = self.gel_image
         self.lin_contrast_adjusted = img_adjusted_linear
     
+
     def setup_figure(self, show_type):
         SINGLE_GEL_HEIGHT = 10 #cm
         TWO_GELS_HEIGHT = 18 #cm
@@ -109,7 +111,7 @@ class Image:
                 # Draw a rectangle in the gap between the previous rectangle and the current one
                 rectangle_width = rect_x - previous_end_x
                 rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
-                                            linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.7))
+                                            linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.5))
                 self.adjusted_gel_axes[0].add_patch(rectangle)
 
             previous_end_x = rect_x + line_profile_width
@@ -118,7 +120,7 @@ class Image:
         if previous_end_x < self.image_width:
             rectangle_width = self.image_width - previous_end_x
             rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
-                                        linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.7))
+                                        linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.5))
             self.adjusted_gel_axes[0].add_patch(rectangle)
 
         return
