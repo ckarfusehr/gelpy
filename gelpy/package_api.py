@@ -8,7 +8,7 @@ from .background_ransac_fit_models import PlaneFit2d
 DEFAULT_GAMMA = 0.1
 DEFAULT_GAIN = 1
 DEFAULT_INTENSITY_RANGE = (0.05, 0.95)
-DEFAULT_IMG_HEIGHT_FACTOR = 0.005
+DEFAULT_IMG_HEIGHT_FACTOR = 0
 DEFAULT_LABEL_ROTATION = 45
 DEFAULT_SHOW_TYPE = "non_linear"
 MODEL_2D_PLANE_FIT_NAME = "2d_plane_fit"
@@ -33,7 +33,6 @@ class AgaroseGel:
         self.plot_and_adjust_gels(show_type, save)
         self.setup_line_profile(line_profile_width)
 
-    # Repeated function has been removed and instead init_image is reused
     def show_adjusted_images(self, save=True, show_type="both"):
         self.plot_and_adjust_gels(show_type, save)
 
