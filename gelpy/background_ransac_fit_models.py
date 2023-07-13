@@ -29,7 +29,7 @@ class PlaneFit2d(BackgroundHandler):
         self.inlier_mask = None
         self.reconstructed_bg = None
         self.y_len_img, self.x_len_img = self.image.shape
-        self.model_input = model_input if model_input else ((10, 10), (self.y_len_img - 15, 10))  # Set heuristic default parameter if not provided
+        self.model_input = model_input if model_input else ((20, 10), (self.y_len_img - 15, 10))  # Set heuristic default parameter if not provided
 
         # Set the stripe data during initialization
         self.top_stripe_data = self.get_stripe_data(*self.model_input[0])
