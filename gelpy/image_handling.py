@@ -58,14 +58,8 @@ class Image:
             img_adjusted_linear = self.gel_image
         self.lin_contrast_adjusted = img_adjusted_linear
     
-    def color_line_profile_area(self, line_profile_width, color = DEFAULT_COLOR):
-        y_pos = 0
-        for x in self.x_label_positions:
-            rect_x = x - line_profile_width/2
-            rectangle_height = self.image_height
-            rectangle = patches.Rectangle((rect_x, y_pos), line_profile_width, rectangle_height,
-                                          linewidth=1, edgecolor=color, facecolor=(1,0,0,0.1))
-            self.adjusted_gel_axes[0].add_patch(rectangle)
+
+
 
     def setup_figure(self, show_type):
         SINGLE_GEL_HEIGHT = 10 #cm
@@ -108,8 +102,16 @@ class Image:
         left_side, right_side, n = self.x_label_pos
         return np.linspace(left_side, right_side, n)
 
-    def save_figure(self, fig, file_path):
-        fig.savefig(file_path, bbox_inches='tight')
+    def color_line_profile_area(self, line_profile_width, color = DEFAULT_COLOR):
+        y_pos = 0
+        for x in self.x_label_positions:
+            rect_x = x - line_profile_width/2
+            rectangle_height = self.image_height
+            rectangle = patches.Rectangle((rect_x, y_pos), line_profile_width, rectangle_height,
+                                          linewidth=1, edgecolor=color, facecolor=(1,0,0,0.1))
+            self.adjusted_gel_axes[0].add_patch(rectangle)
+        
+        return
         
     def plot_adjusted_gels(self, show_type, save=False):
         images = {
@@ -134,3 +136,6 @@ class Image:
         self.adjusted_gel_axes = axes
         
         return self.x_label_positions
+
+    def save_figure(self, fig, file_path):
+        fig.savefig(file_path, bbox_inches='tight')

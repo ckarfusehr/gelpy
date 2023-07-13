@@ -26,12 +26,16 @@ class AgaroseGel:
     def setup_gel(self, labels, x_label_pos, gamma=DEFAULT_GAMMA, gain=DEFAULT_GAIN, 
                   intensity_range=DEFAULT_INTENSITY_RANGE, img_height_factor=DEFAULT_IMG_HEIGHT_FACTOR, 
                   label_rotation=DEFAULT_LABEL_ROTATION, save=False, 
-                  show_type=DEFAULT_SHOW_TYPE, line_profile_width=None):
+                  show_type=DEFAULT_SHOW_TYPE, line_profile_width=None,
+                    remove_bg=False, bg_model=MODEL_2D_PLANE_FIT_NAME, bg_model_input=None):
         """Has to be used as the first function after initiating the Gel"""
         
         self.init_image(labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation)
-        self.plot_and_adjust_gels(show_type, save)
-        self.setup_line_profile(line_profile_width)
+        if remove_bg == False:
+            self.plot_and_adjust_gels(show_type, save)
+            self.setup_line_profile(line_profile_width)
+        elif remove_bg == True:
+            self.remove_background(bg_model=bg_model, bg_model_input=bg_model_input)
 
     def show_adjusted_images(self, save=True, show_type="both"):
         self.plot_and_adjust_gels(show_type, save)
@@ -48,9 +52,9 @@ class AgaroseGel:
     def setup_line_profile(self, line_profile_width):
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
         self.Image.color_line_profile_area(self.global_line_profile_width, color="r")
-
-    def remove_background(self, model=MODEL_2D_PLANE_FIT_NAME, model_input=None):
-        self.init_background_model(model, model_input)
+    
+    def remove_background(self, bg_model, bg_model_input):
+        self.init_background_model(bg_model, bg_model_input)
         self.apply_background_model()
 
     def init_background_model(self, model, model_input):
