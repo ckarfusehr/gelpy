@@ -4,6 +4,7 @@ temp.py
 *.png
 *.svg
 *.pyc
+*.pkl
 
 # package stuff
 *.pyc
