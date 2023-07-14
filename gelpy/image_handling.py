@@ -28,7 +28,10 @@ class Image:
         self.adjust_img_contrast_linear()    
     
     def show_raw_image(self):
-        plt.imshow(self.gel_image, cmap='gray')
+        fig, ax = plt.subplots(1, figsize=(cm_to_inch(18), cm_to_inch(8)))
+        ax.imshow(self.gel_image, cmap='gray')
+        ax.set(title="Raw gel image", xlabel="[px]", ylabel="[px]")
+        plt.show()
 
     def read_gel_image(self):
         self.gel_image = io.imread(self.path)
