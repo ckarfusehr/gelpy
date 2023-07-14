@@ -4,6 +4,8 @@ from .profile_fitting_models import GaussianFitModel, EmgFitModel
 from .profile_fit_handling import LineFits
 from .background_ransac_fit_models import PlaneFit2d
 import seaborn as sns
+import pickle
+import gzip
 
 # Set figure style
 
@@ -119,4 +121,15 @@ class AgaroseGel:
         
         if plot_fits:
             self.LineFits.plot_fits_and_profiles()
+    
+    def save(self, name):
+        with gzip.open(f'{name}.pkl', 'wb') as output:
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+
+    @classmethod
+    def load(cls, file_path):
+        with gzip.open(file_path, 'rb') as input:
+            return pickle.load(input)
+        
+        
 
