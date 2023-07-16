@@ -30,12 +30,14 @@ class Image:
         self.adjust_img_contrast_linear()    
     
     def create_dummy_labels_if_needed(self):
-        if self.labels == None:
-            self.labels = range(len(self.x_label_positions))
-        elif isinstance(self.labels, list) or isinstance(self.labels, range):
+        if self.labels is None:
+            self.labels = [str(i + 1) for i in range(len(self.x_label_positions))]
+        elif isinstance(self.labels, (list, range)):
             pass
         else:
             raise ValueError("labels must be None or a list")
+
+
     
     def show_raw_image(self):
         fig, ax = plt.subplots(1, figsize=(cm_to_inch(18), cm_to_inch(8)))
@@ -107,7 +109,6 @@ class Image:
             ax.tick_params(axis='both', labelsize=8)
 
     def compute_x_label_positions(self):
-
         if self.x_label_pos is None:
             left_guess, right_guess, n = 0.05*self.image_width, 0.95*self.image_width, 10
             self.x_label_positions = np.linspace(left_guess, right_guess, n)
