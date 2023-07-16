@@ -66,14 +66,14 @@ class Image:
     
 
     def setup_figure(self, show_type):
-        SINGLE_GEL_HEIGHT = 10 #cm
-        TWO_GELS_HEIGHT = 18 #cm
+        SINGLE_GEL_HEIGHT = 12 #cm
+        TWO_GELS_HEIGHT = 24 #cm
         if show_type == 'both':
-            fig_height = cm_to_inch(TWO_GELS_HEIGHT) + cm_to_inch(self.img_height_factor)
+            fig_height = cm_to_inch(TWO_GELS_HEIGHT) + self.image_width/self.image_height * cm_to_inch(self.img_height_factor)
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(cm_to_inch(18), fig_height))
             axes = [ax1, ax2]
         elif show_type in ['non_linear', 'linear']:
-            fig_height = cm_to_inch(SINGLE_GEL_HEIGHT) + cm_to_inch(self.img_height_factor)
+            fig_height = cm_to_inch(SINGLE_GEL_HEIGHT) + self.image_width/self.image_height * cm_to_inch(self.img_height_factor)
             fig, ax1 = plt.subplots(figsize=(cm_to_inch(18), fig_height))
             axes = [ax1]
         else:
