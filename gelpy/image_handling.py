@@ -31,7 +31,7 @@ class Image:
     
     def create_dummy_labels_if_needed(self):
         if self.labels == None:
-            self.labels = range(1,len(self.x_label_positions))
+            self.labels = range(len(self.x_label_positions))
         elif isinstance(self.labels, list) or isinstance(self.labels, range):
             pass
         else:
@@ -97,16 +97,11 @@ class Image:
         self.configure_ticks(ax)
 
     def configure_ticks(self, ax):
-        if self.x_label_pos and self.labels:
-            #self.x_label_positions = self.compute_x_label_positions()
-            ax.set_xticks(self.x_label_positions)
-            ax.set_xticklabels(self.labels, rotation=self.label_rotation)
-            ax.xaxis.set_ticks_position('top')
-        else:
-            ax.set_xticks([])
-            ax.set_yticks([])
+        ax.set_xticks(self.x_label_positions)
+        ax.set_xticklabels(self.labels, rotation=self.label_rotation)
+        ax.xaxis.set_ticks_position('top')
 
-        y_ticks = np.arange(0, self.image_height, 100)
+        y_ticks = np.arange(0, self.image_height, 150)
         ax.set_yticks(y_ticks)
         ax.tick_params(axis='both', labelsize=8)
 
