@@ -95,7 +95,7 @@ class LineProfiles:
             else:
                 ax2.axis('off')  # Remove the right y-axis
         ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        ax1.set(ylabel="normalized", xlabel="Pixel")
+        ax1.set(ylabel=f"normalized to {self.normalization_type}", xlabel="[px]")
         
         if self.save:
             fig.savefig(self.save_name_overview, bbox_inches='tight')
