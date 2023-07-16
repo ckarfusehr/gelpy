@@ -94,16 +94,17 @@ class Image:
     def configure_axis(self, ax, img, title):
         ax.imshow(img, cmap='gray')
         ax.set_title(title)
+        ax.set_ylabel("[px]")
         self.configure_ticks(ax)
 
     def configure_ticks(self, ax):
-        ax.set_xticks(self.x_label_positions)
-        ax.set_xticklabels(self.labels, rotation=self.label_rotation)
-        ax.xaxis.set_ticks_position('top')
+            ax.set_xticks(self.x_label_positions)
+            ax.set_xticklabels(self.labels, rotation=self.label_rotation)
+            ax.xaxis.set_ticks_position('top')
 
-        y_ticks = np.arange(0, self.image_height, 150)
-        ax.set_yticks(y_ticks)
-        ax.tick_params(axis='both', labelsize=8)
+            y_ticks = np.arange(0, self.image_height, 150)
+            ax.set_yticks(y_ticks)
+            ax.tick_params(axis='both', labelsize=8)
 
     def compute_x_label_positions(self):
 
@@ -125,25 +126,23 @@ class Image:
         y_pos = 0
         previous_end_x = 0
 
-        for x in sorted(self.x_label_positions): 
+        def draw_rectangle(start_x, end_x):
+            rectangle = patches.Rectangle((start_x, y_pos), end_x - start_x, self.image_height,
+                                        linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.3))
+            self.adjusted_gel_axes[0].add_patch(rectangle)
+
+        positions = sorted(self.x_label_positions) + [self.image_width + line_profile_width/2]
+
+        for x in positions: 
             rect_x = x - line_profile_width / 2
             if rect_x > previous_end_x:
                 # Draw a rectangle in the gap between the previous rectangle and the current one
-                rectangle_width = rect_x - previous_end_x
-                rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
-                                            linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.5))
-                self.adjusted_gel_axes[0].add_patch(rectangle)
+                draw_rectangle(previous_end_x, rect_x)
 
             previous_end_x = rect_x + line_profile_width
 
-        #Draw a rectangle from the end of the last rectangle to the right edge of the plot, if necessary
-        if previous_end_x < self.image_width:
-            rectangle_width = self.image_width - previous_end_x
-            rectangle = patches.Rectangle((previous_end_x, y_pos), rectangle_width, self.image_height,
-                                        linewidth=0.5, edgecolor=color, facecolor=(0, 0, 0, 0.5))
-            self.adjusted_gel_axes[0].add_patch(rectangle)
-
         return
+
 
         
     def plot_adjusted_gels(self, show_type, save=False):
@@ -153,9 +152,9 @@ class Image:
             'both': [self.non_lin_contrast_adjusted, self.lin_contrast_adjusted]
         }
         titles = {
-            'non_linear': ['Non-linear Contrast Adjustment'],
-            'linear': ['Linear Contrast Adjustment'],
-            'both': ['Non-linear Contrast Adjustment', 'Linear Contrast Adjustment']
+            'non_linear': ['Non-linear contrast adjusted'],
+            'linear': ['Linear contrast adjusted'],
+            'both': ['Non-linear contrast adjusted', 'Linear contrast adjusted']
         }
         fig, axes = self.setup_figure(show_type)
 
