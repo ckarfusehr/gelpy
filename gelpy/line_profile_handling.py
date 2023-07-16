@@ -5,15 +5,14 @@ import re
 
 class LineProfiles:
     def __init__(self, gel_image, labels, x_label_positions, select_lanes, slice_line_profile_length, normalization_type,
-                 save, save_name_overview):
+                 save_overview):
         self.gel_image = gel_image
         self.labels = labels
         self.x_label_positions = x_label_positions
         self.select_lanes = select_lanes
         self.slice_start, self.slice_end = slice_line_profile_length
         self.normalization_type = normalization_type
-        self.save = save
-        self.save_name_overview = save_name_overview
+        self.save_overview = save_overview
 
     def _get_lane_indices(self):
         if self.select_lanes == "all":
@@ -97,8 +96,15 @@ class LineProfiles:
         ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
         ax1.set(ylabel=f"normalized to {self.normalization_type}", xlabel="[px]")
         
-        if self.save:
-            fig.savefig(self.save_name_overview, bbox_inches='tight')
+        # Saving the figure
+        if self.save_overview == None or self.save_overview == False:
+            return
+        elif self.save_overview == True:
+            fig.savefig("overview_fitted_line_profiles.png")
+        elif isinstance(self.save_overview, str):
+            fig.savefig(self.save_overview)
+        else:
+            raise ValueError("save_overview must be a filename or True")
 
         return fig
 

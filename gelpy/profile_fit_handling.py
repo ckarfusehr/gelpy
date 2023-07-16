@@ -38,7 +38,7 @@ class LineFits:
         if self.save_fits == None or self.save_fits == False:
             return
         elif self.save_fits == True:
-            fig.savefig("fitted_line_profiles.png")
+            fig.savefig("overview_selected_line_profiles.png")
         elif isinstance(self.save_fits, str):
             fig.savefig(self.save_fits)
         else:
