@@ -1,1 +1,1 @@
-from .package_api import AgaroseGel
+from .package_api import Gel

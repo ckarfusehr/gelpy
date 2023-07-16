@@ -24,7 +24,7 @@ GAUSSIAN_FIT_NAME = "gaussian"
 EMG_FIT_NAME = "emg"
 
 
-class AgaroseGel:
+class Gel:
     def __init__(self, path):
         self.labels = None
         self.x_label_positions = None
