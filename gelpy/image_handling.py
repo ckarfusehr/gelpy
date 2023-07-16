@@ -36,8 +36,6 @@ class Image:
             pass
         else:
             raise ValueError("labels must be None or a list")
-
-
     
     def show_raw_image(self):
         fig, ax = plt.subplots(1, figsize=(cm_to_inch(18), cm_to_inch(8)))
