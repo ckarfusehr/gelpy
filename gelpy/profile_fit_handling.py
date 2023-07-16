@@ -7,14 +7,13 @@ from .utility_functions import cm_to_inch
 
 class LineFits:
     def __init__(self, fit_model, selected_normalized_line_profiles, selected_labels, maxima_threshold, maxima_prominence,
-                 save, save_name_fits):
+                 save_fits):
         self.selected_normalized_line_profiles = selected_normalized_line_profiles
         self.selected_labels = selected_labels
         self.maxima_threshold = maxima_threshold
         self.maxima_prominence = maxima_prominence
         self.fit_model = fit_model()
-        self.save = save
-        self.save_name_fits = save_name_fits
+        self.save_fits = save_fits
 
     def fit(self):
         self.fit_model.fit(self.selected_normalized_line_profiles, self.maxima_threshold, self.maxima_prominence, self.selected_labels)
@@ -35,8 +34,16 @@ class LineFits:
         plt.tight_layout(rect=[0, 0, 1, 0.96])
 
         plt.show()
-        if self.save:
-            fig.savefig(self.save_name_fits)
+        
+        if self.save_fits == None or self.save_fits == False:
+            return
+        elif self.save_fits == True:
+            fig.savefig("fitted_line_profiles.png")
+        elif isinstance(self.save_fits, str):
+            fig.savefig(self.save_fits)
+        else:
+            raise ValueError("save_fits must be a filename or True")
+
 
 
     def plot_left_subplot(self, ax, x, selected_lane_index, selected_label, optimized_parameters, add_legend):
