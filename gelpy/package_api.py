@@ -30,7 +30,7 @@ class AgaroseGel:
         self.x_label_positions = None
         self.global_line_profile_width = None
 
-    def setup_gel(self, labels, x_label_pos, gamma=DEFAULT_GAMMA, gain=DEFAULT_GAIN, 
+    def setup_gel(self, labels=None, x_label_pos=None, gamma=DEFAULT_GAMMA, gain=DEFAULT_GAIN, 
                   intensity_range=DEFAULT_INTENSITY_RANGE, img_height_factor=DEFAULT_IMG_HEIGHT_FACTOR, 
                   label_rotation=DEFAULT_LABEL_ROTATION, save=False, 
                   show_type=DEFAULT_SHOW_TYPE, line_profile_width=None,
@@ -54,7 +54,7 @@ class AgaroseGel:
     def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation):
         self.Image = Image(self.path, labels, x_label_pos, label_rotation,
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
-        self.labels = labels
+        self.labels = self.Image.labels
         self.x_label_pos = x_label_pos 
         
     def setup_line_profile(self, line_profile_width):

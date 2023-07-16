@@ -23,6 +23,7 @@ class Image:
         
         # setup_classs:
         self.read_gel_image()
+        self.compute_x_label_positions()
         self.process_path_and_create_file_names_for_saving()
         self.adjust_img_contrast_non_linear()
         self.adjust_img_contrast_linear()    
@@ -88,7 +89,7 @@ class Image:
 
     def configure_ticks(self, ax):
         if self.x_label_pos and self.labels:
-            self.x_label_positions = self.compute_x_label_positions()
+            #self.x_label_positions = self.compute_x_label_positions()
             ax.set_xticks(self.x_label_positions)
             ax.set_xticklabels(self.labels, rotation=self.label_rotation)
             ax.xaxis.set_ticks_position('top')
@@ -101,8 +102,20 @@ class Image:
         ax.tick_params(axis='both', labelsize=8)
 
     def compute_x_label_positions(self):
-        left_side, right_side, n = self.x_label_pos
-        return np.linspace(left_side, right_side, n)
+
+        if self.x_label_pos is None:
+            left_guess, right_guess, n = 0.05*self.image_width, 0.95*self.image_width, 10
+            self.x_label_positions = np.linspace(left_guess, right_guess, n)
+
+        elif isinstance(self.x_label_pos, tuple) and len(self.x_label_pos) == 3:
+            left_side, right_side, n = self.x_label_pos
+            self.x_label_positions = np.linspace(left_side, right_side, n)
+
+        else:
+            raise ValueError("x_label_pos must be None or a tuple with three values")
+
+        return
+
 
     def color_line_profile_area(self, line_profile_width, color = DEFAULT_COLOR):
         y_pos = 0
