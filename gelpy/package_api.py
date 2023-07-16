@@ -6,6 +6,7 @@ from .background_ransac_fit_models import PlaneFit2d
 import seaborn as sns
 import pickle
 import gzip
+import os
 
 # Set figure style
 
@@ -25,10 +26,11 @@ EMG_FIT_NAME = "emg"
 
 class AgaroseGel:
     def __init__(self, path):
-        self.path = path
         self.labels = None
         self.x_label_positions = None
         self.global_line_profile_width = None
+        self.image = Image.open_image(path)
+        self.file_name_without_ext = os.path.splitext(os.path.basename(path))[0]
 
     def setup_gel(self, labels=None, x_label_pos=None, gamma=DEFAULT_GAMMA, gain=DEFAULT_GAIN, 
                   intensity_range=DEFAULT_INTENSITY_RANGE, img_height_factor=DEFAULT_IMG_HEIGHT_FACTOR, 
@@ -52,13 +54,13 @@ class AgaroseGel:
         self.Image.plot_adjusted_gels(show_type, save)
 
     def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation):
-        self.Image = Image(self.path, labels, x_label_pos, label_rotation,
+        self.Image = Image(self.image, self.file_name_without_ext, labels, x_label_pos, label_rotation,
                            img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
         self.labels = self.Image.labels
         self.x_label_pos = x_label_pos 
         
     def setup_line_profile(self, line_profile_width):
-        self.x_label_positions = self.Image.x_label_positions #move to setup_line_profile
+        self.x_label_positions = self.Image.x_label_positions
         self.global_line_profile_width = LineProfiles.guess_line_profile_width(self.x_label_positions, self.Image.gel_image, line_profile_width)
         self.Image.color_line_profile_area(self.global_line_profile_width, color="darkred")
     

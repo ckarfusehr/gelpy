@@ -9,10 +9,12 @@ from .utility_functions import cm_to_inch
 class Image:
     DEFAULT_COLOR = None
 
-    def __init__(self, path, labels, x_label_pos, label_rotation,
+    def __init__(self, image, file_name_withou_extension, labels, x_label_pos, label_rotation,
                  img_height_factor, gamma, gain, intensity_range):
         # Attributes
-        self.path = path
+        self.gel_image = image
+        self.image_height, self.image_width  = self.gel_image.shape
+        self.file_name_without_extension = file_name_withou_extension
         self.labels = labels
         self.x_label_pos = x_label_pos
         self.gamma = gamma
@@ -22,10 +24,8 @@ class Image:
         self.label_rotation = label_rotation
         
         # setup_classs:
-        self.read_gel_image()
         self.compute_x_label_positions()
         self.create_dummy_labels_if_needed()
-        self.process_path_and_create_file_names_for_saving()
         self.adjust_img_contrast_non_linear()
         self.adjust_img_contrast_linear()    
     
@@ -43,17 +43,9 @@ class Image:
         ax.set(title="Raw gel image", xlabel="[px]", ylabel="[px]")
         plt.show()
 
-    def read_gel_image(self):
-        self.gel_image = io.imread(self.path)
-        self.image_height, self.image_width  = self.gel_image.shape
-
-    def process_path_and_create_file_names_for_saving(self):
-        file_name_without_ext = os.path.splitext(os.path.basename(self.path))[0]
-        base_path = os.path.dirname(self.path)
-        collage_file_name = file_name_without_ext + '_collage.png'
-        collage_file_path = os.path.join(base_path, collage_file_name)
-        self.file_name_without_ext = file_name_without_ext
-        self.collage_file_path = collage_file_path
+    @staticmethod
+    def open_image(path):
+        return io.imread(path)
 
     def adjust_img_contrast_non_linear(self):
         img_adjusted_non_linear = exposure.adjust_gamma(self.gel_image, gamma=self.gamma, gain=self.gain)
@@ -87,7 +79,7 @@ class Image:
         else:
             raise ValueError(f"Invalid show_type. Expected one of: 'both', 'linear', 'non_linear' but got {show_type}")
 
-        fig.suptitle(self.file_name_without_ext, fontsize=14, y=1)
+        fig.suptitle(self.file_name_without_extension, fontsize=14, y=1)
 
         return fig, axes
 
@@ -161,7 +153,7 @@ class Image:
             self.configure_axis(ax, img, title)
         
         if save:
-            self.save_figure(fig, self.collage_file_path)
+            self.save_figure(fig, self.collage_file_path) #xxx
         
         self.adjusted_gel_fig = fig
         self.adjusted_gel_axes = axes
