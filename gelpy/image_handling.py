@@ -24,9 +24,18 @@ class Image:
         # setup_classs:
         self.read_gel_image()
         self.compute_x_label_positions()
+        self.create_dummy_labels_if_needed()
         self.process_path_and_create_file_names_for_saving()
         self.adjust_img_contrast_non_linear()
         self.adjust_img_contrast_linear()    
+    
+    def create_dummy_labels_if_needed(self):
+        if self.labels == None:
+            self.labels = range(1,len(self.x_label_positions))
+        elif isinstance(self.labels, list) or isinstance(self.labels, range):
+            pass
+        else:
+            raise ValueError("labels must be None or a list")
     
     def show_raw_image(self):
         fig, ax = plt.subplots(1, figsize=(cm_to_inch(18), cm_to_inch(8)))
