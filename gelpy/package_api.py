@@ -83,7 +83,7 @@ class AgaroseGel:
 
     # The line profiles logic is separated into a different method
     def show_line_profiles(self, select_lanes="all", slice_line_profile_length=(0,-1),
-                           fit=None, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False,
+                           fit=False, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False,
                            normalization_type="area", save=False, save_name_overview="selected_line_profiles.svg",
                            save_name_fits="selected_fitted_profiles.svg", show_df=True, save_df=False,
                            df_save_name="selected_fitted_params.csv", show_cumulative_lane_plot=True):
@@ -103,15 +103,14 @@ class AgaroseGel:
             self.LineProfiles.plot_selected_line_profiles()
 
     def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, plot_fits, save, save_name_fits, show_df, save_df, df_save_name):
-        if fit is None:
+        if fit == False:
             return
         elif fit == GAUSSIAN_FIT_NAME:
             fit_model = GaussianFitModel
-        elif fit == EMG_FIT_NAME:
+        elif fit == True or fit == EMG_FIT_NAME:
             fit_model = EmgFitModel
         else:
             raise ValueError("Invalid fit type")
-            return
 
         
         self.LineFits = LineFits(fit_model, self.LineProfiles.selected_line_profiles_normalized, self.LineProfiles.selected_labels,

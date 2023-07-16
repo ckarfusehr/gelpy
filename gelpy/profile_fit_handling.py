@@ -26,14 +26,12 @@ class LineFits:
 
         for i, (selected_lane_index, selected_label, optimized_parameters) in enumerate(self.fit_model.fitted_peaks):
             x = np.arange(len(self.selected_normalized_line_profiles[selected_lane_index])).astype("float64")
+            add_legend = (i==0) #for the first, left plot, add a legend
+            self.plot_left_subplot(axs[i, 0], x, selected_lane_index, selected_label, optimized_parameters, add_legend)
+            self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label)
 
-            self.plot_left_subplot(axs[i, 0], x, selected_lane_index, selected_label, optimized_parameters)
-            self.plot_right_subplot(axs[i, 1], x, selected_lane_index, optimized_parameters, selected_label) # added selected_label
-
-        # Set the figure level title
         fig.suptitle('Line profiles and fitted peaks')
 
-        # You might need to adjust the subplots to not overlap the new title
         plt.tight_layout(rect=[0, 0, 1, 0.96])
 
         plt.show()
@@ -41,12 +39,15 @@ class LineFits:
             fig.savefig(self.save_name_fits)
 
 
-    def plot_left_subplot(self, ax, x, selected_lane_index, selected_label, optimized_parameters):
-        ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, zorder=0.5)
+    def plot_left_subplot(self, ax, x, selected_lane_index, selected_label, optimized_parameters, add_legend):
+        line1, = ax.plot(x, self.selected_normalized_line_profiles[selected_lane_index], color='black', alpha=0.9, zorder=0.5, label="norm. line profile")
         ax.set_title(f'Normalized Line Profile - {selected_label}')
         ax.set_xlabel('Pixel')
         ax.set_ylabel('Intensity normalized to area')
-        ax.plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted')
+        line2, = ax.plot(x, self.fit_model.multi_peak_function(x, *optimized_parameters), color='black', linestyle='dotted', label="fitted profile")
+
+        if add_legend:
+            ax.legend(handles=[line1, line2])
 
     def plot_right_subplot(self, ax, x, selected_lane_index, optimized_parameters, selected_label): # added selected_label
         for j in range(0, len(optimized_parameters), self.fit_model.params_per_peak()):
