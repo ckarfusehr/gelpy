@@ -122,15 +122,24 @@ class AgaroseGel:
         
         if plot_fits:
             self.LineFits.plot_fits_and_profiles()
-    
-    def save(self, name):
-        with gzip.open(f'{name}.pkl', 'wb') as output:
-            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+
+    def save(self, name, compress=False):
+        if compress:
+            with gzip.open(f'{name}.pkl.gz', 'wb') as output:
+                pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        else:
+            with open(f'{name}.pkl', 'wb') as output:
+                pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def load(cls, file_path):
-        with gzip.open(file_path, 'rb') as input:
-            return pickle.load(input)
+        _, ext = os.path.splitext(file_path)
+        if ext == '.gz':
+            with gzip.open(file_path, 'rb') as input:
+                return pickle.load(input)
+        else:
+            with open(file_path, 'rb') as input:
+                return pickle.load(input)
         
         
 
