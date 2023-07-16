@@ -136,7 +136,7 @@ class Image:
 
 
         
-    def plot_adjusted_gels(self, show_type, save=False):
+    def plot_adjusted_gels(self, show_type, save_adjusted_gels):
         images = {
             'non_linear': [self.non_lin_contrast_adjusted],
             'linear': [self.lin_contrast_adjusted],
@@ -152,14 +152,20 @@ class Image:
         for ax, img, title in zip(axes, images[show_type], titles[show_type]):
             self.configure_axis(ax, img, title)
         
-        if save:
-            self.save_figure(fig, self.collage_file_path) #xxx
-        
         self.adjusted_gel_fig = fig
         self.adjusted_gel_axes = axes
+        
+        self.check_if_save_figure(fig, save_adjusted_gels) 
         
         return
 
 
-    def save_figure(self, fig, file_path):
-        fig.savefig(file_path, bbox_inches='tight')
+    def check_if_save_figure(self, fig, save_adjusted_gels):
+        if save_adjusted_gels == None or save_adjusted_gels == False:
+            return
+        elif save_adjusted_gels == True:
+            fig.savefig(f"{self.file_name_without_extension}.png", bbox_inches='tight')
+        elif isinstance(save_adjusted_gels, str):
+            fig.savefig(save_adjusted_gels, bbox_inches='tight')
+        else:
+            raise ValueError("save_adjusted_gels must be a filename or True")

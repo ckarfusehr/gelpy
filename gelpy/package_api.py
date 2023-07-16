@@ -41,17 +41,17 @@ class AgaroseGel:
         
         self.init_image(labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation)
 
-        self.plot_and_adjust_gels(show_type, save)
+        self.plot_and_adjust_gels(show_type)
         self.setup_line_profile(line_profile_width)
         
         if remove_bg == True:
             self.remove_background(bg_model=bg_model, bg_model_input=bg_model_input)
 
-    def show_adjusted_images(self, save=True, show_type="both"):
-        self.plot_and_adjust_gels(show_type, save)
+    def show_adjusted_images(self, save_adjusted_gels=False, show_type="both"):
+        self.plot_and_adjust_gels(show_type, save_adjusted_gels)
 
-    def plot_and_adjust_gels(self, show_type, save):
-        self.Image.plot_adjusted_gels(show_type, save)
+    def plot_and_adjust_gels(self, show_type, save_adjusted_gels=False):
+        self.Image.plot_adjusted_gels(show_type, save_adjusted_gels)
 
     def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation):
         self.Image = Image(self.image, self.file_name_without_ext, labels, x_label_pos, label_rotation,
