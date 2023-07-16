@@ -79,7 +79,7 @@ class LineFits:
         plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
         ax.set_xlabel('')
     
-    def display_dataframe(self, show_df, save_df, df_save_name):
+    def display_dataframe(self, show_df):
         
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
@@ -89,7 +89,13 @@ class LineFits:
         
         if show_df == True:
             display(self.fit_model.fit_df)
-        if save_df == True:
-            self.fit_model.fit_df.to_csv(df_save_name, index=False)
-        else:
+        
+    def check_if_save_dataframe(self, save_df):
+        if save_df == None or save_df == False:
             return
+        elif save_df == True:
+            self.fit_model.fit_df.to_csv("fitted_selected_line_profiles.csv", index=False)
+        elif isinstance(save_df, str):
+            self.fit_model.fit_df.to_csv(save_df, index=False)
+        else:
+            raise ValueError("save_df must be a filename or True")

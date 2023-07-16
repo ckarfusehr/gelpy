@@ -81,16 +81,15 @@ class AgaroseGel:
     def show_raw_gel(self):
         self.Image.show_raw_image()
 
-    # The line profiles logic is separated into a different method
     def show_line_profiles(self, select_lanes="all", slice_line_profile_length=(0,-1),
                            fit=False, maxima_threshold=0.001, maxima_prominence=None, plot_fits=False,
                            normalization_type="area", save_overview=False,
                            save_fits=False, show_df=True, save_df=False,
-                           df_save_name="selected_fitted_params.csv", show_overview=True):
+                           show_overview=True):
         
         self.init_line_profiles(select_lanes, slice_line_profile_length, normalization_type,
                                 save_overview, show_overview)
-        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, plot_fits, save_fits, show_df, save_df, df_save_name)
+        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, plot_fits, save_fits, show_df, save_df)
 
     def init_line_profiles(self, select_lanes, slice_line_profile_length, normalization_type, save_overview, show_overview):
         self.LineProfiles = LineProfiles(self.Image.gel_image, self.labels, self.x_label_positions,
@@ -102,7 +101,7 @@ class AgaroseGel:
         if show_overview:
             self.LineProfiles.plot_selected_line_profiles()
 
-    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, plot_fits, save_fits, show_df, save_df, df_save_name):
+    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, plot_fits, save_fits, show_df, save_df):
         if fit == False:
             return
         elif fit == GAUSSIAN_FIT_NAME:
@@ -116,7 +115,8 @@ class AgaroseGel:
         self.LineFits = LineFits(fit_model, self.LineProfiles.selected_line_profiles_normalized, self.LineProfiles.selected_labels,
                                  maxima_threshold, maxima_prominence, save_fits)
         self.LineFits.fit()
-        self.LineFits.display_dataframe(show_df, save_df, df_save_name)
+        self.LineFits.display_dataframe(show_df)
+        self.LineFits.check_if_save_dataframe(save_df)
         
         if plot_fits:
             self.LineFits.plot_fits_and_profiles()
