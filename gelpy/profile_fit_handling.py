@@ -6,17 +6,18 @@ from IPython.display import display
 from .utility_functions import cm_to_inch
 
 class LineFits:
-    def __init__(self, fit_model, selected_normalized_line_profiles, selected_labels, maxima_threshold, maxima_prominence,
+    def __init__(self, fit_model, selected_normalized_line_profiles, selected_labels, maxima_threshold, maxima_prominence, peak_width,
                  save_fits):
         self.selected_normalized_line_profiles = selected_normalized_line_profiles
         self.selected_labels = selected_labels
         self.maxima_threshold = maxima_threshold
         self.maxima_prominence = maxima_prominence
+        self.peak_width = peak_width
         self.fit_model = fit_model()
         self.save_fits = save_fits
 
     def fit(self):
-        self.fit_model.fit(self.selected_normalized_line_profiles, self.maxima_threshold, self.maxima_prominence, self.selected_labels)
+        self.fit_model.fit(self.selected_normalized_line_profiles, self.maxima_threshold, self.maxima_prominence, self.peak_width, self.selected_labels)
         self.fit_model.create_fit_dataframe(self.selected_normalized_line_profiles)
     
     def plot_fits_and_profiles(self):

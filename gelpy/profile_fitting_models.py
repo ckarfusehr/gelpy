@@ -42,12 +42,12 @@ class FitModel(ABC):
         pass
     
     @staticmethod
-    def find_maxima_of_line_profile(line_profile, maxima_threshold, prominence, window_length=4):
-        maxima_indices, _ = find_peaks(line_profile, height=maxima_threshold, prominence=prominence)
+    def find_maxima_of_line_profile(line_profile, maxima_threshold, prominence, peak_width):
+        maxima_indices, _ = find_peaks(line_profile, height=maxima_threshold, prominence=prominence, width=peak_width)
         return maxima_indices
 
-    def fit_single_profile(self, selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, selected_label):
-        maxima_indices = self.find_maxima_of_line_profile(selected_normalized_line_profile, maxima_threshold, maxima_prominence)
+    def fit_single_profile(self, selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, selected_label):
+        maxima_indices = self.find_maxima_of_line_profile(selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width)
 
         # Initial guess for the parameters
         initial_guess = [param for max_index in maxima_indices for param in self.initial_guess(max_index, selected_normalized_line_profile)]
@@ -70,9 +70,9 @@ class FitModel(ABC):
         except RuntimeError:
             print(f"Failed to fit curve for line profile {selected_label}")
 
-    def fit(self, normalized_line_profiles, maxima_threshold, maxima_prominence, selected_labels):
+    def fit(self, normalized_line_profiles, maxima_threshold, maxima_prominence, peak_width, selected_labels):
         for selected_lane_index, selected_normalized_line_profile in enumerate(normalized_line_profiles):
-            self.fit_single_profile(selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, selected_labels[selected_lane_index])
+            self.fit_single_profile(selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, selected_labels[selected_lane_index])
 
 
     def create_fit_dataframe(self, selected_normalized_line_profiles):
