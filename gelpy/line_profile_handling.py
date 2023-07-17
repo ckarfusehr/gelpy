@@ -100,9 +100,9 @@ class LineProfiles:
         if self.save_overview == None or self.save_overview == False:
             return
         elif self.save_overview == True:
-            fig.savefig("overview_fitted_line_profiles.png")
+            fig.savefig("overview_fitted_line_profiles.png", bbox_inches="tight")
         elif isinstance(self.save_overview, str):
-            fig.savefig(self.save_overview)
+            fig.savefig(self.save_overview, bbox_inches="tight")
         else:
             raise ValueError("save_overview must be a filename or True")
 
