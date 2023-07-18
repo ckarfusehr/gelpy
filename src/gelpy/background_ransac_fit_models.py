@@ -275,7 +275,7 @@ class PlaneFit2d(BackgroundHandler):
         data = np.c_[self.fit_data_X, self.fit_data_Y]
 
         # Fit plane using RANSAC
-        ransac = RANSACRegressor(base_estimator=LinearRegression(fit_intercept=True), random_state=0)
+        ransac = RANSACRegressor(estimator=LinearRegression(fit_intercept=True), random_state=0)
         ransac.fit(data, self.fit_data)
 
         # Extract the parameters of the fitted plane
