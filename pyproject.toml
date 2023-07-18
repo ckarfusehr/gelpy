@@ -13,19 +13,21 @@ readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU GENERAL PUBLIC LICENSE",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent"
 ]
 
-[project.urls]
-Homepage = "https://github.com/ckarfusehr/GelPy"
-Bug Tracker = "https://github.com/ckarfusehr/GelPy/issues"
+dependencies = [
+    "numpy>=1.24.3",
+    "scipy>=1.10.1",
+    "scikit-image>=0.21.0",
+    "scikit-learn>=1.2.2",
+    "matplotlib>=3.7.1",
+    "seaborn>=0.12.2",
+    "pandas>=2.0.2"
+]
 
-[project.dependencies]
-numpy = ">=1.24.3"
-scipy = ">=1.10.1"
-scikit-image = ">=0.21.0"
-scikit-learn = ">=1.2.2"
-matplotlib = ">=3.7.1"
-seaborn = ">=0.12.2"
-pandas = ">=2.0.2"
+[project.urls]
+homepage = "https://github.com/ckarfusehr/GelPy"
+bug-tracker = "https://github.com/ckarfusehr/GelPy/issues"
+
