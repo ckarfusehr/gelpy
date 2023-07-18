@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, exposure
-import os
 import matplotlib.patches as patches
 from .utility_functions import cm_to_inch
 
