@@ -81,6 +81,7 @@ class Image:
         Returns:
         numpy.ndarray: The image as a numpy array.
         """
+        return io.imread(path)
 
     def adjust_img_contrast_non_linear(self):
         """
