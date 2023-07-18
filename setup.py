@@ -14,6 +14,7 @@ setup(
         "scikit-learn>=1.2.2",
         "matplotlib>=3.7.1",
         "seaborn>=0.12.2",
+        "ipykernel>=6.19.2",
         "pandas>=2.0.2",
     ],
 )
