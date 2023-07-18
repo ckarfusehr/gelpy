@@ -84,14 +84,14 @@ class Gel:
         self.Image.show_raw_image()
 
     def show_line_profiles(self, select_lanes="all", slice_line_profile_length=(0,-1),
-                           fit=False, maxima_threshold=0.001, maxima_prominence=None, peak_width=1,
+                           fit=False, maxima_threshold=0.001, maxima_prominence=None, peak_width=1, sigma=5,
                            plot_fits=False, normalization_type="area", save_overview=False,
                            save_fits=False, show_df=True, save_df=False,
                            show_overview=True):
         
         self.init_line_profiles(select_lanes, slice_line_profile_length, normalization_type,
                                 save_overview, show_overview)
-        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, peak_width, plot_fits, save_fits, show_df, save_df)
+        self.apply_line_profiles(fit, maxima_threshold, maxima_prominence, peak_width, sigma , plot_fits, save_fits, show_df, save_df)
 
     def init_line_profiles(self, select_lanes, slice_line_profile_length, normalization_type, save_overview, show_overview):
         self.LineProfiles = LineProfiles(self.Image.gel_image, self.labels, self.x_label_positions,
@@ -103,7 +103,7 @@ class Gel:
         if show_overview:
             self.LineProfiles.plot_selected_line_profiles()
 
-    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, peak_width, plot_fits, save_fits, show_df, save_df):
+    def apply_line_profiles(self, fit, maxima_threshold, maxima_prominence, peak_width, sigma , plot_fits, save_fits, show_df, save_df):
         if fit == False:
             return
         elif fit == GAUSSIAN_FIT_NAME:
@@ -115,7 +115,7 @@ class Gel:
 
         
         self.LineFits = LineFits(fit_model, self.LineProfiles.selected_line_profiles_normalized, self.LineProfiles.selected_labels,
-                                 maxima_threshold, maxima_prominence, peak_width, save_fits)
+                                 maxima_threshold, maxima_prominence, peak_width, sigma , save_fits)
         self.LineFits.fit()
         self.LineFits.display_dataframe(show_df)
         self.LineFits.check_if_save_dataframe(save_df)

@@ -7,6 +7,7 @@ from scipy.integrate import simps
 from scipy.stats import norm
 from abc import ABC, abstractmethod
 from scipy.optimize import minimize
+from scipy.ndimage.filters import gaussian_filter1d
 
 class FitModel(ABC):
     def __init__(self):
@@ -42,12 +43,13 @@ class FitModel(ABC):
         pass
     
     @staticmethod
-    def find_maxima_of_line_profile(line_profile, maxima_threshold, prominence, peak_width):
-        maxima_indices, _ = find_peaks(line_profile, height=maxima_threshold, prominence=prominence, width=peak_width)
+    def find_maxima_of_line_profile(line_profile, maxima_threshold, prominence, peak_width, sigma):
+        blurred_line_profile = gaussian_filter1d(line_profile, sigma)
+        maxima_indices, _ = find_peaks(blurred_line_profile, height=maxima_threshold, prominence=prominence, width=peak_width)
         return maxima_indices
 
-    def fit_single_profile(self, selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, selected_label):
-        maxima_indices = self.find_maxima_of_line_profile(selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width)
+    def fit_single_profile(self, selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, sigma , selected_label):
+        maxima_indices = self.find_maxima_of_line_profile(selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, sigma )
 
         # Initial guess for the parameters
         initial_guess = [param for max_index in maxima_indices for param in self.initial_guess(max_index, selected_normalized_line_profile)]
@@ -70,9 +72,9 @@ class FitModel(ABC):
         except RuntimeError:
             print(f"Failed to fit curve for line profile {selected_label}")
 
-    def fit(self, normalized_line_profiles, maxima_threshold, maxima_prominence, peak_width, selected_labels):
+    def fit(self, normalized_line_profiles, maxima_threshold, maxima_prominence, peak_width, sigma , selected_labels):
         for selected_lane_index, selected_normalized_line_profile in enumerate(normalized_line_profiles):
-            self.fit_single_profile(selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, selected_labels[selected_lane_index])
+            self.fit_single_profile(selected_lane_index, selected_normalized_line_profile, maxima_threshold, maxima_prominence, peak_width, sigma , selected_labels[selected_lane_index])
 
 
     def create_fit_dataframe(self, selected_normalized_line_profiles):
