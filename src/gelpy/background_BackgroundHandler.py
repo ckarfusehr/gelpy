@@ -1,9 +1,4 @@
 from abc import ABC, abstractmethod
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import minimize
-from scipy.linalg import lstsq
-from sklearn.linear_model import RANSACRegressor, LinearRegression
 
 class BackgroundHandler(ABC):
     def __init__(self, image):
