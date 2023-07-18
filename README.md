@@ -1,54 +1,52 @@
-## To - do before making public:
+# Welcome to the gelpy project
 
-Build dashboard from background removal dashboard, by inlcuding the plot ussed to setup label positions and band widths.
-allow extraction of non-normalized, raw intensity values.
-remove the red boundary of the line width boxes, instead draw one line where the tick is and darken the outside areas.
-Add pixel axis on the y-bottom scale for the setp gel image.
-The setup function should have a keyword (remove_background=False), which, when set to true, plots the plot now plotted by remove background, but with the setup gel in the top left and the bg gel in the top right.
+If you are looking for a Python package for simplified, reproducible, and easily shareable gel electrophoresis analysis, you are in the right place. If you are also keen on contributing to a Python project, then hey, you are also in the right place!
 
-extract magic numbers and strings to the top of each class file, using GPT.
-### Write tests
+Please note that this package is under development and currently in its alpha phase. I would like to invite you to **try gelpy, break it, and contribute to it**. Valuable contributions include raising issues on the GitHub issues page or, if you want to do some coding, fixing the issue and submitting a merge request to this repository. In any case, I believe that even in its early state, gelpy can make your life working with electrophoresis gels more pleasant and reproducible.
 
-* learn what the heck good tests are
-* Decide on a library to use tests
-* Write tests
+## What can gelpy do?
 
-### restructure code to optimize user experience. Use tests regularly
+As of now, this package includes functions to:
 
-### Write real README file on how to use the package
-### Modernize package structure to use requirements.txt file.
+- Visualize gels with automatically adjusted contrasts (linear and non-linear)
+- Label the lanes
+- Remove the image background
+- Extract and plot lane profiles
+- Fit the peaks (bands) of lane profiles
+- Save all generated images
+- Save the gel object, including all the plots, lane profiles, and fits, as a Python object. You can then send this object as one file to your collaborator, who can load it back into Python and continue where you left off.
 
-### Write docstring for all functions
-* Check if docs generation can be derived from the docstrings?
+Another benefit of using this package over, for example, Fiji for data extraction is that all lane profiles, fitting parameters, and the original image are directly available in Python and do not have to be saved and imported again for further custom analysis
 
+## Installation
 
+Install via pip:
 
-## To-do in general:
-### Change the red lane plotting to the API function show_line_profiles
-This way I do not have to guess the lane_width beforehand. THings will get easier, as the Image and LinePLot classes remain more seperate, than they are atm. Also, I can then draw the rectangles only for the sliced_lengths, further helping to show what one is doing. Plus, I can see it for every set of line_plots one wants to. Just make the default that the rectangle-gel plot is shown. Also, remove connections to show_adjusted_images and just move the whole thing into an independent function?? At the moment, the funciton si not optimal and it seems to connect classes, which is not good.
-
-### improve setup function
-### softrRefactor all the code with GPT4
-
-* Add interactive ipython widgets to setup gel
-* Add some autodetection functions which give reaonable guesses for the parameters set in the setup class.
-    * Implement a function to autodetect the lane positions, based on summing them up aong the y-axis, followed by a peak detection scheme. Perhaps add another function, which calculates also the optimal lane-width, used for all lanes?
+`pip installl gelpy`
 
 
+## How to use gelpy
 
+I recommend checking out the example Jupyter notebook in the "Example" folder. I hope to add proper documentation soon. Also, please note that the docstring was generated with GPT and may potentially contain errors in its current state.
+
+## How to contribute by coding
+
+Does this pique your interest in contributing? Perhaps even implementing new features? I have an unstructured list below where I collect ideas for tasks to be done or features to be implemented.
+
+### Loose notes
+
+- translate docstrings to reStructuredText, such that Sphinx can read it.
+- Compose docs with Sphinx and make it available on read the docs.
+- Allow direct extraction of non-normalized, raw intensity values.
+- Extract remaining magic numbers and magic strings to the top of each class file (using GPT).
+- Write (more) unit tests.
+- Add optional interactive IPython widgets to set up the gel.
+- Add some autodetection functions that provide reasonable guesses for the parameters in the `gel.setup_gel()` function.
+  - Implement a function to autodetect the lane positions based on summing them up along the y-axis, followed by a peak detection scheme. Perhaps add another function that calculates the optimal lane width used for all lanes?
+- Implement another peak-finding algorithm based on inflection point detection of a spline-fitted function.
+- Add utility functions to crop and rotate images so that people can directly use their recorded images.
+- Include a logfile or YAML file that saves all the used parameters for quantitative data extraction in a separate text file. This simplifies reproducibility.
 
 ### New class for quantitative band analysis
-* Setup a new class, which can be used for quantitative gel analysis. E.g. it accepts the used ladder and the applied ladder mass, calculates a calibration curve out of it, and uses this to convert the ntensities of other bands into sample mass.
 
-### Fix bugs
-self.x_label_pos = x_label_pos # A workaround. Instead extrcat positions calculation from plotting function
-
-### Unorganized thoughts:
-* implement another peak finding algorithm, whichis based on inflection point detection of a spline fitted function?
-* Smooth the data considerably before detecting and determining peaks.
-* add util functions to crop, splot and rotate images. So people can come in directly with their recorded images.
-* when setting up the label positions and widths, instead of drawing red rectangles on top, Just set all non-selected pixels to 0.1 transparency. Then peopl can directly see what is selected.
-* Include some logfile, or yaml file, which saves all the used parameters for quantitative data extraction in a seperate text file. This allows ultimate reproducability.
-
-### Publish to pypi and conda
-
+- Set up a new class that can be used for quantitative gel analysis (e.g., in ng per band). The class should accept the ladder used, the applied ladder concentration, and volume. It should calculate a calibration curve based on this information and use it to convert the intensities of other bands into sample mass.
