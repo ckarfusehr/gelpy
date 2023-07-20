@@ -23,14 +23,11 @@ Another benefit of using this package over, for example, Fiji for data extractio
 ### pip
 
 ```
-conda create -n <your_environment_name>
-conda install python
+conda create -n <your_environment_name> python
+conda activate <your_environment_name>
 pip installl gelpy
 
 ```
-
-(`conda install python`is only needed if your system wide python installation is older than 3.8. This is because `conda create -n <env_name>` gives you an empty environment without Python in it):
-
 
 ## How to use gelpy
 
