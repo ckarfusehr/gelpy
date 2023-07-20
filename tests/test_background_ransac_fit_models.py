@@ -10,6 +10,7 @@ def test_get_stripe_data():
     assert stripe.shape == (10, 100)
     assert X.shape == (10, 100)
     assert Y.shape == (10, 100)
+    
 
 def test_extract_fit_data_from_image():
     image = np.random.rand(100, 100)
