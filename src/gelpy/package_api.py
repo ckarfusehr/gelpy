@@ -18,6 +18,7 @@ DEFAULT_INTENSITY_RANGE = (0.05, 0.95)
 DEFAULT_IMG_HEIGHT_FACTOR = 0
 DEFAULT_LABEL_ROTATION = 45
 DEFAULT_SHOW_TYPE = "non_linear"
+DEFAULT_TITLE_LABEL_SPACING = 1.0
 MODEL_2D_PLANE_FIT_NAME = "2d_plane_fit"
 GAUSSIAN_FIT_NAME = "gaussian"
 EMG_FIT_NAME = "emg"
@@ -41,7 +42,7 @@ class Gel:
                   intensity_range=DEFAULT_INTENSITY_RANGE, img_height_factor=DEFAULT_IMG_HEIGHT_FACTOR, 
                   label_rotation=DEFAULT_LABEL_ROTATION, save=False, 
                   show_type=DEFAULT_SHOW_TYPE, line_profile_width=None,
-                    remove_bg=False, bg_model=MODEL_2D_PLANE_FIT_NAME, bg_model_input=None):
+                    remove_bg=False, bg_model=MODEL_2D_PLANE_FIT_NAME, bg_model_input=None, title_label_spacing=DEFAULT_TITLE_LABEL_SPACING, show_ladder="None"):
         """
         Initializes the gel instance by loading the image, adjusting its properties and optionally 
         removing its background.
@@ -68,9 +69,9 @@ class Gel:
             ValueError: If an invalid fit type is provided.
         """
         
-        self.init_image(labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation)
+        self.init_image(labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation, title_label_spacing, show_ladder)
 
-        self.plot_and_adjust_gels(show_type)
+        self.plot_and_adjust_gels(save_adjusted_gels=False, show_type=show_type)
         self.setup_line_profile(line_profile_width)
         
         if remove_bg == True:
@@ -84,9 +85,9 @@ class Gel:
             save_adjusted_gels (bool, optional): If set to True, the adjusted images are saved. Default is False.
             show_type (str, optional): The type of display for the image. Default is 'both'.
         """
-        self.plot_and_adjust_gels(show_type, save_adjusted_gels)
+        self.plot_and_adjust_gels(save_adjusted_gels, show_type)
 
-    def plot_and_adjust_gels(self, show_type, save_adjusted_gels=False):
+    def plot_and_adjust_gels(self, save_adjusted_gels=False, show_type="both"):
         """
         Plots and adjusts the gel images.
 
@@ -96,7 +97,7 @@ class Gel:
         """
         self.Image.plot_adjusted_gels(show_type, save_adjusted_gels)
 
-    def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation):
+    def init_image(self, labels, x_label_pos, gamma, gain, intensity_range, img_height_factor, label_rotation, title_label_spacing=1.0, show_ladder="None"):
         """
         Initializes the gel image with the provided parameters.
 
@@ -110,7 +111,7 @@ class Gel:
             label_rotation (int): The rotation angle of the labels.
         """
         self.Image = Image(self.image, self.file_name_without_ext, labels, x_label_pos, label_rotation,
-                           img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range)
+                           img_height_factor=img_height_factor, gamma=gamma, gain=gain, intensity_range=intensity_range, title_label_spacing=title_label_spacing, show_ladder=show_ladder)
         self.labels = self.Image.labels
         self.x_label_pos = x_label_pos 
         
@@ -156,7 +157,7 @@ class Gel:
         self.background_model.extract_fit_data_from_image()
         self.background_model.fit_model_to_data()
         self.Image.gel_image = self.background_model.substract_background()  # this sets the original gel_image to the bg corrected image
-        self.background_model.visualize_fit_data()
+        #self.background_model.visualize_fit_data()
 
     def show_raw_gel(self):
         """

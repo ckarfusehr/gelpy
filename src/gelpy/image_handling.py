@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from skimage import io, exposure
 import matplotlib.patches as patches
 from .utility_functions import cm_to_inch
-
+import os
 
 class Image:
     """ 
@@ -11,9 +11,10 @@ class Image:
     adjusting and plotting images.
     """
     DEFAULT_COLOR = None
+    DEFAULT_SHOW_LADDER = "None"
 
     def __init__(self, image, file_name_withou_extension, labels, x_label_pos, label_rotation,
-                 img_height_factor, gamma, gain, intensity_range):
+                 img_height_factor, gamma, gain, intensity_range, title_label_spacing=1.0, show_ladder=DEFAULT_SHOW_LADDER):
         """
         Initialize the Image object.
         
@@ -28,6 +29,12 @@ class Image:
         gain (float): Gain to apply after gamma correction.
         intensity_range (tuple): Intensity range for linear contrast adjustment. If None, no adjustment will be made.
         """
+
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+
+
+
+
         # Attributes
         self.gel_image = image
         self.image_height, self.image_width  = self.gel_image.shape
@@ -39,6 +46,15 @@ class Image:
         self.intensity_range = intensity_range
         self.img_height_factor =  img_height_factor
         self.label_rotation = label_rotation
+        self.title_label_spacing = title_label_spacing
+        
+        self.show_ladder = show_ladder
+        if self.DEFAULT_SHOW_LADDER == "None":
+            self.ladders = {
+                '1kbp_extended': Image.open_image(os.path.join(current_directory, "resources/ladders/1kbp_extended.png")),
+                '1kbp_plus': Image.open_image(os.path.join(current_directory, "resources/ladders/1kbp_plus.png")),
+                # add more ladders as needed
+        }
         
         # setup_classs:
         self.compute_x_label_positions()
@@ -118,7 +134,7 @@ class Image:
 
         Parameters:
         show_type (str): Specifies the type of display. Options are 'both', 'linear', 'non_linear'. 
-                         'both' will create a 2x1 subplot, otherwise it will create a single plot.
+                        'both' will create a 2x1 subplot, otherwise it will create a single plot.
 
         Returns:
         tuple: A tuple containing the figure and the axes for the plots.
@@ -126,20 +142,34 @@ class Image:
         """
         SINGLE_GEL_HEIGHT = 12 #cm
         TWO_GELS_HEIGHT = 24 #cm
+        
         if show_type == 'both':
             fig_height = cm_to_inch(TWO_GELS_HEIGHT) + self.image_width/self.image_height * cm_to_inch(self.img_height_factor)
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(cm_to_inch(18), fig_height))
-            axes = [ax1, ax2]
         elif show_type in ['non_linear', 'linear']:
             fig_height = cm_to_inch(SINGLE_GEL_HEIGHT) + self.image_width/self.image_height * cm_to_inch(self.img_height_factor)
-            fig, ax1 = plt.subplots(figsize=(cm_to_inch(18), fig_height))
-            axes = [ax1]
         else:
             raise ValueError(f"Invalid show_type. Expected one of: 'both', 'linear', 'non_linear' but got {show_type}")
 
-        fig.suptitle(self.file_name_without_extension, fontsize=14, y=1)
+        # Check if we should show a ladder
+        if self.show_ladder and self.show_ladder in self.ladders:
+            fig = plt.figure(figsize=(cm_to_inch(36), fig_height))  # Assuming double width for 2 subplots
+            gel_ax = fig.add_subplot(1, 2, 1)
+            ladder_ax = fig.add_subplot(1, 2, 2, frame_on=False)  # Remove frame for ladder
+            ladder_ax.axis('off')  # Ensure no axes are shown for ladder
+            axes = [gel_ax]
+        else:
+            if show_type == 'both':
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(cm_to_inch(18), fig_height))
+                axes = [ax1, ax2]
+            else:
+                fig, ax1 = plt.subplots(figsize=(cm_to_inch(18), fig_height))
+                axes = [ax1]
+
+        fig.suptitle(self.file_name_without_extension, fontsize=14, y=1 + self.title_label_spacing/10)
 
         return fig, axes
+
+
     
     def configure_axis(self, ax, img, title):
         """
@@ -227,10 +257,10 @@ class Image:
 
         Parameters:
         show_type (str): Specifies the type of plot. Options are 'both', 'linear', 'non_linear'. 
-                         'both' will plot both non-linear and linear adjusted images.
+                        'both' will plot both non-linear and linear adjusted images.
         save_adjusted_gels (str or bool): Specifies whether and where to save the figure.
-                                          If True, the figure will be saved with the file name provided during initialization.
-                                          If a string, it will be used as the file name for saving the figure.
+                                        If True, the figure will be saved with the file name provided during initialization.
+                                        If a string, it will be used as the file name for saving the figure.
         Raises a ValueError if an invalid 'show_type' or 'save_adjusted_gels' is provided.
         """
         images = {
@@ -247,12 +277,20 @@ class Image:
 
         for ax, img, title in zip(axes, images[show_type], titles[show_type]):
             self.configure_axis(ax, img, title)
-        
+
+        # If show_ladder is set and the ladder exists in the ladders dictionary
+        if self.show_ladder and self.show_ladder in self.ladders:
+            ladder_img = self.ladders[self.show_ladder]
+            ladder_ax = fig.add_subplot(1, 2, 2)  # Add ladder as second subplot
+            ladder_ax.imshow(ladder_img, cmap='gray')
+            ladder_ax.set_title(self.show_ladder)
+            ladder_ax.axis('off')  # Optionally turn off the axis for the ladder image
+
         self.adjusted_gel_fig = fig
         self.adjusted_gel_axes = axes
         
         self.check_if_save_figure(fig, save_adjusted_gels) 
-        
+            
         return
 
 
