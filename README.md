@@ -1,4 +1,5 @@
-# Welcome to the gelpy project (DOI: 10.5281/zenodo.11520210)
+# Welcome to the gelpy project
+[![DOI](https://zenodo.org/badge/648061579.svg)](https://zenodo.org/doi/10.5281/zenodo.11520209)
 
 If you are looking for a Python package for simplified, reproducible, and easily shareable gel electrophoresis analysis, you are in the right place. If you are also keen on contributing to a Python project, then hey, you are also in the right place!
 
