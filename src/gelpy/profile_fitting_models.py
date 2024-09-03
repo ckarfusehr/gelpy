@@ -12,7 +12,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 class FitModel(ABC):
     def __init__(self):
         """
-        The base abstract class for creating a fitting model for line profiles.
+        The base abstract class for creating a fitting model for line profiles..
         """
         self.fitted_peaks = []
         self.fit_df = None
