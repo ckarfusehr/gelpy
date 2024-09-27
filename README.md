@@ -10,7 +10,7 @@ Due to lack of time and newer alternatives, I have discontinued this project. Th
 
 If you are looking for a Python package for simplified, reproducible, and easily shareable gel electrophoresis analysis, you are in the right place. If you are also keen on contributing to a Python project, then hey, you are also in the right place!
 
-Please note that this package is under development and currently in its alpha phase. I would like to invite you to **try gelpy, break it, and contribute to it**. Valuable contributions include raising issues on the GitHub issues page or, if you want to do some coding, fixing the issue and submitting a merge request to this repository. In any case, I believe that even in its early state, gelpy can make your life working with electrophoresis gels more pleasant and reproducible.
+Please note that this package is under development and currently in its alpha phase. I would like to invite you to **try gelpy, break it, and contribute to it**. Valuable contributions include raising issues on the GitHub issues page or, if you want to do some coding, fixing the issue and submitting a pull request to this repository. In any case, I believe that even in its early state, gelpy can make your life working with electrophoresis gels more pleasant and reproducible.
 
 ## What can gelpy do?
 
