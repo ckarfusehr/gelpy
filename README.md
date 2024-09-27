@@ -1,3 +1,10 @@
+# ⚠️ Deprecated: gelpy
+
+**This project is no longer maintained and may not work with current versions of Python or its dependencies.**
+
+Due to lack of time and newer alternatives, I have discontinued this project. Thank you for your contributions, and may the gels be with you.
+
+
 # Welcome to the gelpy project
 [![DOI](https://zenodo.org/badge/648061579.svg)](https://zenodo.org/doi/10.5281/zenodo.11520209)
 
