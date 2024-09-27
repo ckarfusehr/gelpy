@@ -1,11 +1,11 @@
 #
 *.csv
 temp.py
-*.png
 *.jpg
 *.svg
 *.pyc
 *.pkl
+overview_plots_1.png
 
 # package stuff
 *.pyc
