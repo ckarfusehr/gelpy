@@ -3,7 +3,7 @@ from scipy.signal import find_peaks
 import numpy as np
 import scipy.optimize as opt
 import pandas as pd
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from scipy.stats import norm
 from abc import ABC, abstractmethod
 from scipy.optimize import minimize
@@ -55,7 +55,7 @@ class FitModel(ABC):
         """
         x = np.arange(start, end)
         y = self.single_peak_function(x, *params)
-        area = simps(y, x)
+        area = simpson(y, x=x)
         return area
 
     def multi_peak_function(self, x, *params):
