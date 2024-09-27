@@ -45,7 +45,12 @@ class LineProfiles:
                 if isinstance(i, int):
                     indices.append(i)
                 elif isinstance(i, str):
-                    indices.extend([j for j, label in enumerate(self.labels) if re.search(i, label)])
+                    if i[0] == "#": # add all lanes with a label that contains the string following #
+                        indices.extend([j for j, label in enumerate(self.labels) if re.search(i[1:], label)])
+                    else:
+                        indices.extend([j for j, label in enumerate(self.labels) if label == i])
+            if indices == []: # return all lanes if no lanes are matched/selected
+                return list(range(len(self.labels)))
             return list(set(indices))  # Remove duplicates by converting to a set and then back to a list
         elif isinstance(self.select_lanes, str):
             return [i for i, label in enumerate(self.labels) if re.search(self.select_lanes, label)]

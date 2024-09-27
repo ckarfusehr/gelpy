@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gelpy"
-version = "0.0.1"
+version = "0.0.3"
 authors = [
   { name = "Christoph Karfusehr", email = "c.karfusehr@gmail.com" }
 ]
-description = "A small python package used for gel electrophoresis visualization, fitting and analysis"
+description = "This project is deprecated and no longer maintained. A small python package used for gel electrophoresis visualization, fitting and analysis"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [

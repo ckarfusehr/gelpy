@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import io, exposure
+from skimage import io, exposure, color
 import matplotlib.patches as patches
 from .utility_functions import cm_to_inch
 import os
@@ -97,7 +97,10 @@ class Image:
         Returns:
         numpy.ndarray: The image as a numpy array.
         """
-        return io.imread(path)
+        image = io.imread(path)
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            image = color.rgb2gray(image)
+        return image
 
     def adjust_img_contrast_non_linear(self):
         """
