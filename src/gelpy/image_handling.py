@@ -30,10 +30,6 @@ class Image:
         intensity_range (tuple): Intensity range for linear contrast adjustment. If None, no adjustment will be made.
         """
 
-        current_directory = os.path.dirname(os.path.abspath(__file__))
-
-
-
 
         # Attributes
         self.gel_image = image
@@ -50,11 +46,13 @@ class Image:
         
         self.show_ladder = show_ladder
         if self.DEFAULT_SHOW_LADDER == "None":
+            LADDER_PATH = "../resources/ladders"
             self.ladders = {
-                '1kbp_extended': Image.open_image(os.path.join(current_directory, "resources/ladders/1kbp_extended.png")),
-                '1kbp_plus': Image.open_image(os.path.join(current_directory, "resources/ladders/1kbp_plus.png")),
+                'neb_1kbp': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kb_DNAladder.png")),
+                'neb_1kbp_plus': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kbPlus_DNAladder.png")),
+                'neb_low_mw': Image.open_image(os.path.join(LADDER_PATH, "NEB_LowMolecWeight_DNAladder.png")),
                 # add more ladders as needed
-        }
+            }
         
         # setup_classs:
         self.compute_x_label_positions()
