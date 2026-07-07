@@ -48,12 +48,12 @@ class Image:
         if self.DEFAULT_SHOW_LADDER == "None":
             LADDER_PATH = "../resources/ladders"
             self.ladders = {
-                'neb_1kbp': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kb_DNAladder.png")),
-                'neb_1kbp_plus': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kbPlus_DNAladder.png")),
-                'neb_low_mw': Image.open_image(os.path.join(LADDER_PATH, "NEB_LowMolecWeight_DNAladder.png")),
-                # add more ladders as needed
+                # 'neb_1kbp': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kb_DNAladder.png")),
+                # 'neb_1kbp_plus': Image.open_image(os.path.join(LADDER_PATH, "NEB_1kbPlus_DNAladder.png")),
+                # 'neb_low_mw': Image.open_image(os.path.join(LADDER_PATH, "NEB_LowMolecWeight_DNAladder.png")),
+                # # add more ladders as needed
             }
-        
+    
         # setup_classs:
         self.compute_x_label_positions()
         self.create_dummy_labels_if_needed()

@@ -97,6 +97,8 @@ class LineProfiles:
         numpy.ndarray: The normalized line profile.
         Raises a ValueError if an invalid 'normalization_type' is provided.
         """
+        if self.normalization_type == "safe":
+            return self.normalize_line_profile_to_safe(line_profile)
         if self.normalization_type == "min_max":
             return self.normalize_line_profile_to_min_max(line_profile)
         elif self.normalization_type == "area":
@@ -136,9 +138,20 @@ class LineProfiles:
         Returns:
         numpy.ndarray: The normalized line profile.
         """
-        area = np.trapz(line_profile)
+        area = np.trapezoid(line_profile)
         return line_profile / area
         
+    def normalize_line_profile_to_safe(self, line_profile):
+        """
+        Does not normalizes a line profile.
+
+        Parameters:
+        line_profile (numpy.ndarray): The line profile to normalize.
+
+        Returns:
+        numpy.ndarray: The normalized line profile.
+        """
+        return line_profile 
  
     def set_line_profile_width(self, line_profile_width):
         """
