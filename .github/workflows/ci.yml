@@ -1,0 +1,97 @@
+name: CI
+
+# Without CI, the checks below only run when someone remembers to run them -- which is how
+# this project's test suite came to sit red for two months and its documentation came to be
+# wrong in 38 verified places. The example TIFFs are committed, so the end-to-end replay and
+# the executable-documentation tests really run here rather than skipping.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Test suite (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Version is single-sourced
+        run: pytest tests/test_packaging.py -q
+
+      - name: Unit and integration tests
+        run: pytest tests/ -q --ignore=tests/docs -p no:cacheprovider
+
+  docs:
+    name: Documentation is not lying
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Fast checks first, so a stale reference fails in seconds rather than after the
+      # end-to-end runs.
+      - name: Generated reference matches the code
+        run: python tools/docs.py check
+
+      - name: Claims, freshness, links and plugin
+        run: |
+          pytest tests/docs -q -p no:cacheprovider \
+            --deselect tests/docs/test_examples_execute.py::test_every_command_block_executes
+
+      # These execute every documented command against the real example gel, and re-run the
+      # walkthrough to confirm its published numbers still hold. Minutes, not seconds.
+      - name: Documented commands actually run
+        run: pytest tests/docs/test_examples_execute.py -q -p no:cacheprovider
+
+      - name: The walkthrough is reproducible
+        run: python tools/build_walkthrough.py --check
+
+  build:
+    name: Package builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      # The sdist must not carry examples/data (~17 MB of TIFFs). They are committed for the
+      # tests, which is not the same as shipping them to every `pip install`.
+      - name: Source distribution excludes the example images
+        run: |
+          if tar -tzf dist/*.tar.gz | grep -q 'examples/data/.*\.tif'; then
+            echo "sdist contains example TIFFs; check [tool.hatch.build.targets.sdist] in pyproject.toml" >&2
+            exit 1
+          fi

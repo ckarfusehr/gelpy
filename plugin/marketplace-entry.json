@@ -1,0 +1,45 @@
+{
+  "_comment": [
+    "Paste ONE of these into your marketplace repo's .claude-plugin/marketplace.json",
+    "'plugins' array. Which one depends on how that marketplace lists its plugins.",
+    "",
+    "vendored: use when the marketplace lists its plugins by a relative './' path, so",
+    "the plugin has to live inside the marketplace repo. Copy it there with",
+    "  python tools/sync_plugin.py --to /path/to/marketplace-checkout",
+    "which also inserts or updates this entry for you. Re-run it after any change to",
+    "plugin/ (or wire it into CI), otherwise users keep the copy they already have.",
+    "",
+    "referenced: use when users add the marketplace themselves with",
+    "'/plugin marketplace add'. Nothing is copied and nothing needs re-syncing -- the",
+    "marketplace points at this repo's plugin/ subdirectory and every push to the branch",
+    "reaches everyone. Deliberately no 'sha': pinning one freezes the plugin forever.",
+    "",
+    "Neither form carries a 'version', matching plugin.json. A versioned plugin is only",
+    "re-delivered when the version is bumped."
+  ],
+  "vendored": {
+    "name": "gelpy",
+    "description": "Analyze gel electrophoresis images end-to-end with the gelpy CLI: place lanes from the image itself, remove background, fit per-lane band intensities, and produce a browsable run folder with results.csv, a report, and per-lane fit plots. Encodes the verify-as-you-go loop -- detect lanes, confirm the overlay, fit, inspect every lane, refit the stragglers.",
+    "author": {
+      "name": "Christoph Karfusehr"
+    },
+    "category": "science",
+    "source": "./plugins/gelpy",
+    "homepage": "https://github.com/ckarfusehr/GelPy"
+  },
+  "referenced": {
+    "name": "gelpy",
+    "description": "Analyze gel electrophoresis images end-to-end with the gelpy CLI: place lanes from the image itself, remove background, fit per-lane band intensities, and produce a browsable run folder with results.csv, a report, and per-lane fit plots. Encodes the verify-as-you-go loop -- detect lanes, confirm the overlay, fit, inspect every lane, refit the stragglers.",
+    "author": {
+      "name": "Christoph Karfusehr"
+    },
+    "category": "science",
+    "source": {
+      "source": "git-subdir",
+      "url": "https://github.com/ckarfusehr/GelPy.git",
+      "path": "plugin",
+      "ref": "main"
+    },
+    "homepage": "https://github.com/ckarfusehr/GelPy"
+  }
+}

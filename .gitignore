@@ -1,17 +1,22 @@
-#
-*.csv
+.DS_Store
 temp.py
-*.jpg
-*.svg
-*.pyc
 *.pkl
-overview_plots_1.png
+
+# Run folders. gelpy writes analyses into a run directory; those are outputs, not source.
+# NOTE: deliberately NOT a blanket `*.csv` / `*.png` ignore. The old one silently swallowed
+# every results.csv, including the generated walkthrough's, which is content we commit.
+runs/
+run/
+
+# Local analysis outputs and agent working files: never source.
+agent_analysis/
+report.pdf
+.superpowers/
+docs/superpowers/
+.claude/settings.local.json
+.claude/worktrees/
 
 # package stuff
-*.pyc
-gelpy/__pycache__/line_profile_handling.cpython-311.pyc
-gelpy/__pycache__/package_api.cpython-311.pyc
-gelpy/__pycache__/*
 gelpy.egg-info
 gelpy.egg-info/*
 PKG-INFO

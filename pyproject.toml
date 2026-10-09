@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gelpy"
-version = "0.0.4"
+dynamic = ["version"]
 authors = [
   { name = "Christoph Karfusehr", email = "c.karfusehr@gmail.com" }
 ]
-description = "This project is deprecated and no longer maintained. A small python package used for gel electrophoresis visualization, fitting and analysis"
+description = "Gel electrophoresis image analysis, agent-native: a caching run-folder pipeline with a CLI."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -23,12 +23,53 @@ dependencies = [
     "scikit-image>=0.21.0",
     "scikit-learn>=1.2.2",
     "matplotlib>=3.7.1",
+    "pydantic>=2.9",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# pandas/seaborn are not needed by the core pipeline (downstream users bring their
+# own); they belong to the optional notebook-scaffolding workflow.
+notebook = [
+    "pandas>=2.0.2",
     "seaborn>=0.12.2",
     "ipykernel>=6.19.2",
-    "pandas>=2.0.2"
 ]
+# Everything needed to run the test suite and the documentation checks.
+dev = [
+    "pytest>=8.0",
+    "pandas>=2.0.2",
+    "nbclient>=0.9",
+    "nbformat>=5.9",
+    "mkdocs-material>=9.5",
+    # Only the doc-tooling tests use it directly (front-matter validity); mkdocs-material
+    # already pulls it in, but the dependency is declared so the test never silently skips.
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+gelpy = "gelpy.cli.app:main"
 
 [project.urls]
 homepage = "https://github.com/ckarfusehr/GelPy"
 bug-tracker = "https://github.com/ckarfusehr/GelPy/issues"
 
+[tool.hatch.version]
+# Single source of truth for the version. Duplicating it here and in __init__.py is a
+# lie waiting to happen, and tests/test_packaging.py asserts the two agree.
+path = "src/gelpy/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gelpy"]
+
+[tool.hatch.build.targets.sdist]
+# hatchling does not read MANIFEST.in; this is the only sdist rule (files ignored by .gitignore
+# stay out as well). The example TIFFs are committed for the tests and the walkthrough in a
+# checkout, not shipped to every source install.
+exclude = ["/examples/data"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: end-to-end runs against the real example TIFFs (minutes, not seconds)",
+]

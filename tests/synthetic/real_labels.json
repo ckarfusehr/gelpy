@@ -1,0 +1,49 @@
+{
+  "_comment": "Hand-labeled ground-truth lane centers for real example gels, for the adaptive-band evaluation harness. Precious/editable. Paths are relative to the repo root. 'centers' are true lane-center x-positions (px); 'band_y' marks the informative migration region(s) for reference/overlap scoring. Images may be absent locally (large TIFFs) -> the harness skips them, like tests/e2e.",
+  "images": [
+    {
+      "name": "folding_screen",
+      "path": "examples/data/folding_screen.tif",
+      "n_lanes": 20,
+      "centers_linspace": [
+        150.0,
+        4485.0
+      ],
+      "notes": "20-lane agarose gel. Two informative y-regions: a faint upper ladder (~y100-500) and a bright lower smiling product band (~y750-960). GT = an ASSUMED even grid 150..4485 (matching the tests/e2e linspace), NOT a per-lane hand measurement -- so part of any residual is label error rather than detector error. Measured 2026-09-10 with `python -m tests.synthetic.real`: worst 4.44 px = 0.019x pitch, median 1.87 px, confidence ok, identical for the shipped default and for projection_strategy='full'. (An earlier version of this note claimed agreement to <1 px; that was wrong.) A real test of picking the right y-sub-band.",
+      "band_y": [
+        [
+          100,
+          500
+        ],
+        [
+          740,
+          980
+        ]
+      ]
+    },
+    {
+      "name": "cy3",
+      "path": "examples/data/20230317_first_fold_cy3_500v-[Cy3]-1.tif",
+      "n_lanes": 11,
+      "centers_linspace": [
+        134.0,
+        1897.0
+      ],
+      "notes": "11-lane Cy3 gel on a uniform comb: lane 0 = ladder (bands at ~y200-500), lane 1 = scaffold/control (single band ~y560-600), lanes 2-10 = 9 samples (bands ~y700-820). CRUX case: NO single y-band captures all lanes -- restricting to the bright sample region (y700-820) gives huge clean sample peaks but ZERO peak coverage for lanes 0-1, while the upper region has the ladder/scaffold but no samples. A band-selection design that greedily picks the brightest window must NOT silently drop lanes 0-1 (a real spread_migration). Full-height detection places all 11 correctly (conf ok, pitch 176) because the grid prior spans the uncovered nodes. GT centers validated against the well grid + full-height detection.",
+      "band_y": [
+        [
+          200,
+          500
+        ],
+        [
+          560,
+          600
+        ],
+        [
+          700,
+          820
+        ]
+      ]
+    }
+  ]
+}

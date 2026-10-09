@@ -1,0 +1,19 @@
+{
+  "name": "gelpy",
+  "description": "Analyze gel electrophoresis images end-to-end with the gelpy CLI: place lanes from the image itself, remove background, fit per-lane band intensities, and produce a browsable run folder with results.csv, a report, and per-lane fit plots. Encodes the verify-as-you-go loop -- detect lanes, confirm the overlay, fit, inspect every lane, refit the stragglers.",
+  "author": {
+    "name": "Christoph Karfusehr"
+  },
+  "homepage": "https://github.com/ckarfusehr/GelPy",
+  "repository": "https://github.com/ckarfusehr/GelPy",
+  "license": "GPL-3.0-or-later",
+  "category": "science",
+  "keywords": [
+    "gel-electrophoresis",
+    "image-analysis",
+    "peak-fitting",
+    "densitometry",
+    "molecular-biology",
+    "reproducible-research"
+  ]
+}

@@ -1,0 +1,87 @@
+site_name: gelpy
+site_description: Gel electrophoresis image analysis, agent-native.
+repo_url: https://github.com/ckarfusehr/GelPy
+docs_dir: docs
+
+# The markdown under docs/ is the single source and is complete on GitHub without a build
+# step. This config only adds search and navigation for people who prefer a site; nothing
+# here duplicates content, and there is no mkdocs-only syntax in any page.
+#
+# Serve locally:  mkdocs serve       (needs the `dev` extra)
+# Build:          mkdocs build
+#
+# Do NOT use --strict. A handful of pages link to files OUTSIDE docs/ -- source modules under
+# src/gelpy/, CHANGELOG.md, examples/downstream_analysis.ipynb -- which resolve correctly on
+# GitHub (the primary reading surface) but are not copied into the site, so mkdocs warns and
+# --strict turns those warnings into failure. Those links are deliberate: pointing a reader at
+# the actual module is more useful than paraphrasing it, and copying those files under docs/
+# to satisfy the builder would create exactly the duplicate-source drift this documentation
+# set exists to avoid. tests/docs/test_links.py checks that every relative link resolves on
+# disk, which is the guarantee that actually matters.
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+
+nav:
+  - Start here: README.md
+  - Walkthrough: walkthrough/README.md
+  - Guide:
+      - Install: guide/install.md
+      - Analyse a gel: guide/analyze-a-gel.md
+      - Concepts: guide/concepts.md
+      - Driving from an agent: guide/driving-from-an-agent.md
+      - Image input: guide/image-input.md
+      - Lane placement: guide/lane-placement.md
+      - Background removal: guide/background.md
+      - Line profiles: guide/line-profiles.md
+      - The fit engine: guide/fit-engine.md
+      - Reading the results: guide/results.md
+      - Reading the figures: guide/reading-the-figures.md
+      - Troubleshooting: guide/troubleshooting.md
+      - Known limitations: guide/known-limitations.md
+      - Extending gelpy: guide/extending.md
+      - Architecture: guide/architecture.md
+      - Migrating from 0.x: guide/migrating-from-0.x.md
+  - Reference:
+      - CLI: reference/cli.md
+      - Data contracts: reference/contracts.md
+      - Registries: reference/registries.md
+      - Error codes: reference/errors.md
+      - Run folder format: reference/run-folder.md
+  - Decisions: decisions/README.md
+
+# Pages deliberately excluded from the site navigation. tests/docs/test_links.py asserts
+# every docs/**/*.md is either in `nav` above or named here, so a page can never silently
+# disappear -- the decision has to be recorded.
+#
+# excluded: decisions/*.md
+#   Historical design records. Reachable from decisions/README.md, which IS in the nav, but
+#   deliberately not listed page-by-page: they describe intent at a point in time, several
+#   were implemented differently, and a site visitor browsing a nav tree should not stumble
+#   into one expecting current behaviour.
+#
+# excluded: walkthrough/report.md
+#   Not a page: it is the report.md that the example run itself produced, committed next to
+#   the walkthrough so a reader can see what a real run folder contains without running one.
