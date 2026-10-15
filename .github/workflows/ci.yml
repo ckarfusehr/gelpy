@@ -34,10 +34,30 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,mcp]"
 
       - name: Version is single-sourced
         run: pytest tests/test_packaging.py -q
+
+      - name: Unit and integration tests
+        run: pytest tests/ -q --ignore=tests/docs -p no:cacheprovider
+
+  floors:
+    name: Lowest declared floors (py3.10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # The oldest Python the package declares, with the oldest release of every direct
+      # dependency it declares: a floor that no longer holds fails here instead of at a user.
+      - name: Install the lowest declared floors
+        run: |
+          python -m pip install --upgrade pip uv
+          uv pip install --system --resolution lowest-direct -e ".[dev,mcp]"
 
       - name: Unit and integration tests
         run: pytest tests/ -q --ignore=tests/docs -p no:cacheprovider
@@ -56,7 +76,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,mcp]"
 
       # Fast checks first, so a stale reference fails in seconds rather than after the
       # end-to-end runs.

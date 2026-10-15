@@ -30,6 +30,12 @@ class AnalysisResult(CanonicalModel):
     """All per-lane fit results for a run."""
 
     lanes: list[LaneFitResult] = Field(default_factory=list)
+    gelpy_version: str = Field(default="", description="gelpy version that assembled these results.")
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Lanes left out of `lanes` that are not merely stale: a current fit whose "
+        "file is damaged. Each names the lane and the command that fits it again.",
+    )
 
     def to_rows(self) -> list[dict[str, Any]]:
         """Flatten to result rows (one per band; failed/empty lanes emit one lane-level row)."""

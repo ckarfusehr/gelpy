@@ -7,7 +7,7 @@ subject:
   - src/gelpy/core/contrast.py
   - src/gelpy/schemas/image.py
   - src/gelpy/schemas/contrast.py
-subject_digest: f70ed77a1c3466bc
+subject_digest: d64d493a554e3f29
 ---
 
 ## One funnel, one contract
@@ -20,12 +20,13 @@ half of that contract is a property of canonicalization, not of every later stag
 removal defaults to `clip_negative = False` and passes on a *signed* array, so line profiles
 and fits routinely see negative values (see [background.md](background.md)).
 
-Order of operations:
+Before step 1, `decode_image` reads the file header and refuses a file over the
+[size limits](#size-limits) without decoding a pixel. Order of operations:
 
 1. decode the file; select one page if it is a stack
 2. reject non-finite pixels, before any arithmetic
 3. scale to float `[0, 1]`
-4. collapse colour channels to 2-D
+4. collapse color channels to 2-D
 5. decide polarity: bright-band-on-dark, or dark-band-on-light
 6. apply `1 - x` if and only if the source is dark-on-light
 
@@ -34,10 +35,10 @@ Steps 1, 4 and 5 are decisions, each recorded as a categorical outcome in `Image
 consumes the recorded outcome and contains no detection code. That is what makes a run folder
 replay bit-exact, and why `ImageMeta` is editable intent rather than a log line.
 
-Five fields feed `image_hash` (`runfolder/stages.py`): the source `sha256`, plus
-`channel_strategy`, `channel_index`, `inverted` and `page`. Change one and every downstream
-stage recomputes. The rest -- `polarity_confidence` included -- is a record, not a cache key.
-Full field list: `gelpy schema ImageMeta`.
+Six inputs feed `image_hash` (`runfolder/stages.py`): the source `sha256`, `channel_strategy`,
+`channel_index`, `inverted`, `page` and the gelpy version. Change one and every downstream
+stage recomputes. The rest of `ImageMeta` -- `polarity_confidence` included -- is a record, not
+a cache key. Full field list: `gelpy schema ImageMeta`.
 
 ## First thing to do on a new image
 
@@ -83,7 +84,7 @@ the only image fields `RunStatus` carries, so `status` re-checks the sign but no
 - **Float sources** are passed through untouched inside `[0, 1]` and min-max stretched only
   if a pixel falls outside it. Where that stretch fires it is *relative*: two such TIFFs at
   different exposures come out identically scaled and are no longer comparable. Two floats
-  already normalised into `[0, 1]` are not stretched and stay comparable.
+  already normalized into `[0, 1]` are not stretched and stay comparable.
 - Scaling is global -- one factor for the whole array, though the out-of-range branch is
   `(f - lo) / (hi - lo)`, which shifts as well as scales -- so a channel collapse is never
   distorted per pixel.
@@ -92,7 +93,7 @@ The example gel is uint16 with a canonical median of `0.0026`, 99.5th percentile
 maximum `0.659`. Nothing rescales that into a full `[0, 1]` swing, which is why the untouched
 view of it looks black (see [display contrast](#display-contrast-is-display-only)).
 
-## Colour channels
+## Color channels
 
 `--channel` accepts `auto`, `mean`, `luminance`, `r`, `g`, `b`, `dominant`, `max`. What gets
 *recorded* can additionally be `gray` (the source was already 2-D) or `gray_rgb` (a
@@ -100,8 +101,8 @@ multi-channel source whose channels agree within tolerance across at least 99.9%
 so the mean loses nothing that matters -- the other 0.1% are unconstrained and may differ by
 any amount).
 
-- `auto` on a genuinely coloured image resolves to `mean`: the intensity-to-ground-truth
-  mapping of a colour gel photograph is unknowable from the image alone, so the least-biased
+- `auto` on a genuinely colored image resolves to `mean`: the intensity-to-ground-truth
+  mapping of a color gel photograph is unknowable from the image alone, so the least-biased
   collapse wins.
 - `dominant` picks the channel with the widest robust dynamic range (99.5th minus 0.5th
   percentile) and freezes the index in `channel_index`, so replay never re-runs the argmax.
@@ -112,7 +113,7 @@ any amount).
   uint8 `(64, 64, 2)` TIFF with gray 50 and alpha 255: canonical value `50/255 = 0.196`,
   not the gray/alpha mean `0.598`.
 
-One trap: the grayness test runs **before** your request is honoured. If the 99.9th percentile
+One trap: the grayness test runs **before** your request is honored. If the 99.9th percentile
 of the per-pixel channel spread is below `0.02` the collapse is `gray_rgb` whatever you asked
 for, and a 2-D source is a passthrough recorded as `gray`. So asking for a channel that does
 not exist is silently ignored rather than refused:
@@ -132,8 +133,9 @@ That is correct -- there is nothing to weight on a single-channel TIFF -- but it
 
 ## Multi-page sources
 
-A stack is pages along axis 0 and `--page K` selects one. `source_pages` reports how many the
-decoder found, and a stack raises a non-fatal warning naming the page in use:
+A stack is pages along axis 0 (a length-1 axis, as in `(4, 1, Y, X)` or `(Y, X, 1)`, is dropped first) and `--page K` selects one; a stack of more than 64 pages is
+refused before it is decoded (see [size limits](#size-limits)). `source_pages` reports how many
+the decoder found, and a stack raises a non-fatal warning naming the page in use:
 
 ```console
   "warnings": [
@@ -147,12 +149,20 @@ decoder found, and a stack raises a non-fatal warning naming the page in use:
   keys for one set of pixels.
 - **The finite check is per selected frame, not per file.** A NaN on page 1 does not stop page
   0 from loading.
+- **A file tifffile could only partly read is reported, not repaired.** tifffile logs a damaged
+  TIFF and carries on: a six-page stack whose page list breaks after page three comes back as the
+  three pages it could reach, and only the log says so. gelpy keeps what tifffile logged during
+  the read (warnings and errors: at most five different messages, without the folders of the
+  file, in `reader_warnings` of the image record) and `init`, `image set` and `status` carry it
+  in `warnings`: `tifffile reported while reading the image: <tifffile.TiffPages @8> invalid page
+  offset 29264. The file may be damaged or truncated: check source_pages, and export it again if
+  pages are missing.` A file that is cut off in its pixel data fails instead (`decode_error`).
 
-### Caveat: 3- and 4-page grayscale stacks are read as colour
+### Caveat: 3- and 4-page grayscale stacks are read as color
 
-The `(pages, H, W)` versus `(H, W, channels)` ambiguity is resolved in favour of channels when
+The `(pages, H, W)` versus `(H, W, channels)` ambiguity is resolved in favor of channels when
 the last axis is 2, 3 or 4. With `scikit-image` 0.26.0 a genuine 3- or 4-page grayscale TIFF
-arrives already transposed to `(H, W, 3)` / `(H, W, 4)`, so it is collapsed as colour, your
+arrives already transposed to `(H, W, 3)` / `(H, W, 4)`, so it is collapsed as color, your
 pages get averaged into one frame, and `--page` does nothing. 2-page and 5-plus-page stacks
 decode as pages. The tell is `source_pages: 1` with `source_channels: 3`:
 
@@ -201,9 +211,59 @@ gelpy init "$BAD/run" "$BAD/nan.tif" --n-lanes 4
 {
   "error": "image contains 1 non-finite (NaN/Inf) pixels; clean the source before analysis.",
   "code": "nonfinite_image",
-  ...
+  "detail": "Replace the NaN/Inf pixels (export the image again) and run `gelpy init` on the clean file.",
+  "available": null
 }
 ```
+
+## Size limits
+
+A file can declare far more pixels than any gel has: a header that says 40000 x 40000 in a few
+bytes, or a stack of thousands of pages. Decoded, it would exhaust the machine's memory before
+gelpy could object. So gelpy reads the file header first and refuses, with
+`code: "image_too_large"`, a file that would decode to more than 100 million pixels, counted as
+width x height summed over its pages, or that has more than 64 pages. Nothing is decoded before
+that check. The count is of what the decoder will hold: every 2-D plane of a stack is a page,
+whatever its axes are called (an ImageJ or OME stack of time points and z slices included), and a
+color channel adds no pixels. A length-1 axis is counted as the file stores it: a `(4, 1, Y, X)`
+stack is four pages. An axis of 3 or 4 directly before or after Y and X is read as color
+channels, as the decoder reads it (the caveat under Multi-page sources), so a stack of three or
+four pages counts as one page of Y x X pixels, up to four times fewer than the values held, the
+same factor as for a four-channel image.
+`GELPY_MAX_PIXELS` and `GELPY_MAX_PAGES` change the two limits for one process.
+<!-- claim: image-size-limits -->
+Each takes a positive whole number of at most 18 digits, written with the digits 0-9 (an empty
+value counts as unset); any other value, `1_000` and `+5` included, is an `invalid_value` error.
+The limits are read at
+every decode and a run folder does not record them, so a later command that decodes the image
+again needs the same variables. A file whose header no reader understands -- a text file with a
+`.tif` name, a TIFF that is only a header -- is a `decode_error` instead, and so is a GIF with
+more than one frame, because a GIF header does not bound the size of its later frames; export
+the frame you want as PNG or TIFF
+(`tests/core/test_image_limits.py::test_any_gif_with_more_than_one_frame_is_refused`). The
+example gel is 6.4 million pixels on one page, so a limit of one million refuses it:
+
+```bash
+# doc-test: expect-failure
+GELPY_MAX_PIXELS=1000000 gelpy init "${RUN}_capped" "$IMAGE" --n-lanes 20
+```
+
+```console
+{
+  "error": "'folding_screen.tif' would decode to 6,394,432 pixels; the limit is 1,000,000.",
+  "code": "image_too_large",
+  "detail": "Crop or downsample the image, or raise the limit with GELPY_MAX_PIXELS.",
+  "available": null
+}
+```
+
+The lane count is the other size a caller supplies, and it is capped too.
+<!-- claim: lane-count-cap -->
+A request, a `recipe.json` or a `fit_config.json` holds at most 1000 lanes: `n_lanes`, the count
+of `lanes set --linspace`, `--x-center`, the labels and the terms of a lane selector. A larger
+request is refused before any work is done, with a `validation_error` that names the field and
+the limit (`n_lanes: Input should be less than or equal to 1000`), and a recipe edited to hold
+more lanes does not load. This limit has no environment variable.
 
 ## Polarity: the one decision that can silently invert every number
 
@@ -306,7 +366,7 @@ gelpy image show "$RUN" --kind non_linear --lanes
 ```
 
 One thing every kind shares: `render_gel_image` calls `imshow` with no `vmin`/`vmax`, so
-matplotlib min-max normalises the display. `raw` applies no gelpy contrast, but the PNG is
+matplotlib min-max normalizes the display. `raw` applies no gelpy contrast, but the PNG is
 still a linear stretch of the canonical array (min to black, max to white; divisor 0.6586 on
 the example gel) -- *relative*, not absolute, canonical intensity. The stretch is monotonic,
 which is why `raw` remains the view to check when something looks wrong: it is the only one
@@ -319,8 +379,8 @@ a fluorescence gel; a `raw` view that is bright everywhere with dark bands means
 went the wrong way.
 
 Two smaller things: `corrected` renders the same array as `non_linear` until a background stage
-is configured, since background removal is a passthrough when off; and an unrecognised `--kind`
-does not error -- it falls back to gamma and writes a PNG named after whatever you typed.
+is configured, since background removal is a passthrough when off; and any other `--kind` is
+refused (`validation_error`, nothing written), because the kind is also the PNG's file name.
 
 ## Where to look next
 

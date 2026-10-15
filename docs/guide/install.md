@@ -5,21 +5,23 @@ summary: Create an environment, install the checkout editable, and verify it wit
 subject:
   - src/gelpy/__init__.py
   - src/gelpy/__main__.py
-subject_digest: dcd97f6098ac18e8
+subject_digest: 559a2c318e2158f8
 ---
 
 ## What you need
 
 - **Python >= 3.10.** That is the `requires-python` floor declared in `pyproject.toml`. CI
-  (`.github/workflows/ci.yml`) runs the suite on Python 3.11 and 3.12, so the declared floor
-  itself is never exercised: 3.10 is a declaration, not a tested guarantee.
+  (`.github/workflows/ci.yml`) runs the suite on Python 3.11 and 3.12, and once more on Python
+  3.10 with the lowest release of every direct dependency the project declares.
   Everything measured on this page was measured on Python 3.14.4.
-- **A checkout, not PyPI.** The newest release on PyPI is 0.0.4 (checked 2026-09-10), which is
+- **A checkout, not PyPI.** The newest release on PyPI is 0.0.4 (checked 2026-10-14), which is
   the pre-rewrite `Gel` object API. `pip install gelpy` therefore gets you 0.x, which is
   incompatible with everything in this documentation.
 - The scientific stack arrives as declared dependencies (numpy, scipy, scikit-image,
-  scikit-learn, matplotlib) plus pydantic and typer. The version floors are in
-  `pyproject.toml`; do not trust a copy of them written anywhere else.
+  scikit-learn, matplotlib) plus pydantic and typer. **numpy must be 2.0 or later**: gelpy calls
+  `np.trapezoid`, which numpy 1.x lacks, so an environment that pins numpy 1.x cannot be
+  reused. The other version floors are in `pyproject.toml`; do not trust a copy of them written
+  anywhere else.
 
 ## Install
 
@@ -32,13 +34,14 @@ cd /path/to/GelPy               # the checkout
 pip install -e .                # package + runtime dependencies
 pip install -e ".[dev]"         # ...and pytest, to run the test suite
 pip install -e ".[notebook]"    # ...and pandas/seaborn/ipykernel, for your own notebooks
+pip install -e ".[mcp]"         # ...and the MCP server (gelpy mcp)
 ```
 
 The documentation test suite does not execute that block: it would install into the
 environment running the tests. Every block below it is executed, in order, against the real
 example gel.
 
-Two notes on the extras:
+Three notes on the extras:
 
 - `.[dev]` declares pytest, pandas, nbclient, nbformat and mkdocs-material. Nothing under
   `tests/` or `tools/` imports the last four on this checkout, so what the suite actually needs
@@ -47,6 +50,11 @@ Two notes on the extras:
   (`src/gelpy/schemas/results.py`, pandas lazy-imported) works and so you can plot in a
   notebook of your own. Notebook *scaffolding* — a command that writes one for you — is not
   implemented.
+- `.[mcp]` installs the official MCP Python SDK (`mcp`, version 2.2 or later and below 3), which
+  `gelpy mcp` needs and nothing else uses; see
+  [driving-from-an-agent.md](driving-from-an-agent.md). Without it `gelpy mcp` fails with
+  `code: "missing_dependency"`, and the tests of the server (`tests/cli/test_mcp.py`) are
+  skipped. `.[dev]` does not include it: install `.[dev,mcp]` to run them, as CI does.
 
 ## Verify
 
@@ -64,13 +72,21 @@ already have them set, this leaves them alone.
 **1. The entry point exists, and what version it is.**
 
 ```bash
+gelpy --version
+```
+
+```text
+gelpy 1.1.0
+```
+
+```bash
 gelpy --help
 python -c "import gelpy; print(gelpy.__version__)"
 ```
 
-Expect the command tree and `1.0.0`. There is no `--version` flag on the CLI — `gelpy
---version` exits 2 with "No such option". Ask Python for the version instead; `pyproject.toml`
-reads it out of `src/gelpy/__init__.py`, so there is only one copy of it.
+Expect `gelpy 1.1.0`, then the command tree, then `1.1.0`. `gelpy --version` prints the version
+and exits 0. The Python one-liner prints the same number: both read `gelpy.__version__`, and
+`pyproject.toml` reads it out of `src/gelpy/__init__.py`, so there is only one copy of it.
 
 **2. Which install you are actually running.**
 
@@ -161,30 +177,31 @@ it in a subprocess.
 
 ## Run the tests
 
-A cheap check that the install is coherent:
+A shorter check that the install is coherent, the contracts and the command line (about a minute
+and a half):
 
 ```bash
 python -m pytest tests/schemas tests/cli -q
 ```
 
 ```text
-27 passed in 3.20s
+364 passed in 90.75s (0:01:30)
 ```
 
-The count is the part to compare; the seconds are not reproducible to two digits.
+The count is the part to compare, and it assumes `.[dev,mcp]`: without the `mcp` extra the tests of
+the server are skipped and the line says so. The seconds are not reproducible to two digits.
 
-The whole suite is `pytest tests/ -q`. Measured on Python 3.14.4, 2026-09-10:
+The whole suite is `pytest tests/ -q`. Measured on Python 3.14.4, 2026-10-14, with `.[dev,mcp]`:
 
-- Everything except `tests/docs/` — the layers that test the code — is **199 tests, all
-  passing, in about 6.5 minutes**. Three tests are ~90% of that wall clock: the lane-strategy
-  comparison (`tests/core/test_lane_strategy_d4.py::test_d4_harness_composite_at_least_matches_baseline`,
-  ~4 min), the end-to-end replay (`tests/e2e/test_replay.py`, ~1 min) and the real-image fit
-  smoke test (`tests/synthetic/test_fit_real.py`, ~50 s). Everything else is seconds. So if you
-  want a fast loop, name the layer you are working on rather than waiting on `tests/`.
+- **1140 tests, all passing, in about 23 minutes.** Everything except `tests/docs/` -- the layers
+  that test the code -- is 903 tests in about 5 minutes, and `tests/docs/` is 237 tests in about
+  18 minutes, almost all of it the replay of the documentation's commands. The longest tests are
+  those replays (up to about 170 s a page), the lane-strategy comparison in `tests/core/test_lane_strategy_d4.py`
+  (about 150 s) and the end-to-end replay `tests/e2e/test_replay.py` (about 40 s). Everything else is
+  seconds. So if you want a fast loop, name the layer you are working on rather than waiting on `tests/`.
 - Read those durations as an order of magnitude, not a benchmark. Repeated runs of the same
   tests on the same machine and interpreter spread by 10-40% here, and the count itself moves
-  whenever a test lands — three arrived in the two commits before this measurement, taking it
-  from 196 to 199. If your numbers differ, that is not a broken install.
+  whenever a test lands. If your numbers differ, that is not a broken install.
 - The end-to-end replay drives the real 20-lane TIFF through the whole pipeline and is the
   primary verification; the unit layers are guardrails, not ground truth.
 - `tests/docs/` verifies the documentation against the code — it executes every command block,
@@ -195,7 +212,7 @@ The whole suite is `pytest tests/ -q`. Measured on Python 3.14.4, 2026-09-10:
   checkout and skip when they are absent.
 - `pytest -m "not slow"` deselects the documentation block replay
   (`tests/docs/test_examples_execute.py`) and nothing else — it is the only test carrying the
-  marker. In particular it does **not** skip the ~1-minute end-to-end replay, despite the
+  marker. In particular it does **not** skip the ~40-second end-to-end replay, despite the
   marker's description in `pyproject.toml` ("end-to-end runs against the real example TIFFs").
 
 ## Coming from 0.x

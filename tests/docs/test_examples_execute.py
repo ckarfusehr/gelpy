@@ -189,6 +189,8 @@ def test_no_page_documents_a_flag_that_does_not_exist():
             flag = match.group(1) or match.group(2)
             if flag in known or flag in foreign:
                 continue
+            if flag.startswith("--gelpy-"):
+                continue  # CSS custom properties of the HTML report, not flags
             context = lowered[max(0, match.start() - window) : match.end() + window]
             disclaimed = any(marker in context for marker in negation)
             if flag in removed_in_1_0:

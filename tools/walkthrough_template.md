@@ -37,7 +37,7 @@ a gel cheap enough that you do it by default.
 If you have the skill installed, this is the whole thing:
 
 ```text
-Analyse examples/data/folding_screen.tif. It is a 20-lane DNA origami folding
+Analyze examples/data/folding_screen.tif. It is a 20-lane DNA origami folding
 screen; the labels are in labels.txt. Give me the per-lane band fractions and
 tell me which lanes you would not trust.
 ```
@@ -102,7 +102,7 @@ the dashed grid. The projection also shows why the smoothing window is as wide a
 peaks are lane-wide plateaus, not spikes, and averaging over ~0.7 of the pitch keeps a
 brighter well edge from pulling a center sideways.
 
-Against hand-labelled ground truth for this gel the worst center is out by 4.4 px, which is
+Against hand-labeled ground truth for this gel the worst center is out by 4.4 px, which is
 0.019 of the pitch -- against a 180 px profile strip. If your overlay does not look like
 this, [../guide/lane-placement.md](../guide/lane-placement.md) has the recovery ladder,
 cheapest first.
@@ -111,7 +111,7 @@ cheapest first.
 
 <!-- gelpy:step:background -->
 
-Do this before any profile or fit, always. Skipping it and normalising raw profiles by area is
+Do this before any profile or fit, always. Skipping it and normalizing raw profiles by area is
 a trap: a bright lane's background floor gets crushed toward zero while a faint lane's gets
 inflated, because each is divided by a different total. The lanes then carry visibly different
 baselines that mean nothing physical.
@@ -168,7 +168,7 @@ Now look at a fit. This is lane 5:
 
 Left: the raw profile, the estimated baseline, and the summed model, which should be
 indistinguishable from the profile. Right: the baseline-subtracted signal decomposed into
-components coloured by class and labelled with area fractions.
+components colored by class and labeled with area fractions.
 
 Two things in this figure matter more than the rest.
 
@@ -239,7 +239,7 @@ The flag is doing its job: each reason names the problem and points at an action
 warned that the obvious actions do not always work. On lane 7, escalating to the Bayesian tier
 left coverage at 74% with a single component, and moving the window start past the well dip
 did not clear the over-fit either -- it made lane 6 worse (195%). The response that works on
-this gel is to stop slicing: the well is modelled and labelled anyway, so the full window fits
+this gel is to stop slicing: the well is modeled and labeled anyway, so the full window fits
 cleanly, which is what the run above does.
 
 The general lesson is the one worth carrying: **`status: "ok"` only means the fit converged.**
@@ -256,7 +256,7 @@ image pixels -- so re-running the same command recomputes nothing:
 <!-- gelpy:step:recache -->
 
 <!-- gelpy:stat:fit_seconds --> s becomes <!-- gelpy:stat:recache_seconds --> s, and
-`recomputed` is empty. That is not a micro-optimisation, it is what makes the workflow usable:
+`recomputed` is empty. That is not a micro-optimization, it is what makes the workflow usable:
 changing one lane's fit settings re-fits that lane and nothing else, and changing your mind
 back is a cache hit rather than another wait. [../guide/concepts.md](../guide/concepts.md)
 explains what feeds each hash and what is deliberately left out.

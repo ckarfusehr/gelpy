@@ -1,9 +1,12 @@
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
+import gelpy
 from gelpy.cli.app import app
+from gelpy.core.errors import InvalidValueError
 
 runner = CliRunner()
 
@@ -106,7 +109,7 @@ def test_unknown_lane_errors_with_available(gel_image, run_dir):
     _run("lanes", "set", run_dir, "--linspace", "40", "250", "3")
     result = runner.invoke(app, ["fit", "run", run_dir, "--lane", "nonexistent"])
     assert result.exit_code == 1
-    err = json.loads(result.output)
+    err = json.loads(result.stderr)
     assert err["code"] == "lane_selection"
     assert err["available"] is not None
 
@@ -115,7 +118,7 @@ def test_unknown_background_model_errors(gel_image, run_dir):
     _run("init", run_dir, gel_image, "--n-lanes", "3")
     result = runner.invoke(app, ["background", "remove", run_dir, "--model", "bogus"])
     assert result.exit_code == 1
-    err = json.loads(result.output)
+    err = json.loads(result.stderr)
     assert err["code"] == "registry"
     assert "plane_ransac" in (err["available"] or [])
 
@@ -126,6 +129,7 @@ def test_lane_all_explicit_matches_omitted(gel_image, run_dir):
     # --lane entirely worked.
     _run("init", run_dir, gel_image, "--n-lanes", "3")
     _run("lanes", "set", run_dir, "--linspace", "40", "250", "3")
+    _run("background", "remove", run_dir, "--model", "plane_ransac")
     out = _run("profiles", "extract", run_dir, "--lane", "all")
     recomputed = json.loads(out.output)["recomputed"]
     assert sum(1 for k in recomputed if k.startswith("profile:lane=")) == 3
@@ -178,3 +182,117 @@ def test_init_invert_flag_and_image_set(gel_image, run_dir):
     _run("image", "set", run_dir, "--invert")
     out = _run("status", run_dir)
     assert json.loads(out.output)["polarity"] == "dark_on_light"
+
+
+def test_version_flag_prints_the_package_version():
+    out = _run("--version")
+    assert out.stdout.strip() == f"gelpy {gelpy.__version__}"
+
+
+def test_init_twice_needs_force(gel_image, run_dir):
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    again = runner.invoke(app, ["init", run_dir, gel_image, "--n-lanes", "4"])
+    assert again.exit_code == 1
+    assert json.loads(again.stderr)["code"] == "run_exists"
+    _run("init", run_dir, gel_image, "--n-lanes", "3", "--force")
+    assert json.loads(_run("status", run_dir).stdout)["n_lanes"] == 3
+
+
+def test_image_show_accepts_only_the_four_kinds(gel_image, run_dir, tmp_path):
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    result = runner.invoke(app, ["image", "show", run_dir, "--kind", "../../escaped"])
+    assert result.exit_code == 1
+    assert json.loads(result.stderr)["code"] == "validation_error"
+    assert not list(tmp_path.rglob("escaped*"))
+
+
+def test_render_image_checks_the_kind_for_python_callers(gel_image, run_dir):
+    from gelpy.cli import _render
+
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    with pytest.raises(InvalidValueError) as info:
+        _render.render_image(run_dir, kind="../x")
+    assert info.value.available == ["raw", "linear", "non_linear", "corrected"]
+
+
+def test_fit_without_background_needs_allow_raw(gel_image, run_dir):
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    _run("lanes", "set", run_dir, "--linspace", "40", "250", "4")
+    refused = runner.invoke(app, ["fit", "run", run_dir, "--lane", "0"])
+    assert refused.exit_code == 1
+    assert json.loads(refused.stderr)["code"] == "background_required"
+    _run("fit", "run", run_dir, "--lane", "0", "--allow-raw")
+
+
+@pytest.mark.parametrize(
+    "args",
+    [("profiles", "extract", "--lane", "0"), ("fit", "refit-lane", "--lane", "0")],
+    ids=["profiles-extract", "fit-refit-lane"],
+)
+def test_allow_raw_reaches_every_command_that_needs_a_background(gel_image, run_dir, args):
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    _run("lanes", "set", run_dir, "--linspace", "40", "250", "4")
+    command = (*args[:2], run_dir, *args[2:])
+    refused = runner.invoke(app, list(command))
+    assert refused.exit_code == 1
+    assert json.loads(refused.stderr)["code"] == "background_required"
+    _run(*command, "--allow-raw")
+
+
+def test_a_run_made_with_relative_paths_is_read_from_another_directory(gel_image, tmp_path, monkeypatch):
+    """An agent changes directory between calls: status, results and the renders find everything
+    through the run folder, never through the working directory."""
+    (tmp_path / "work").mkdir()
+    (tmp_path / "elsewhere").mkdir()
+    monkeypatch.chdir(tmp_path)
+    _run("init", "work/run", "gel.tif", "--n-lanes", "4", "--width", "30")
+    _run("lanes", "set", "work/run", "--linspace", "40", "250", "4", "--width", "30")
+    _run("background", "remove", "work/run", "--model", "plane_ransac")
+    _run("fit", "run", "work/run", "--lane", "0", "--lane", "1")
+
+    monkeypatch.chdir(tmp_path / "elsewhere")
+    run = "../work/run"
+    status = json.loads(_run("status", run).output)
+    assert (status["n_fit"], status["n_stale"], status["stale_stages"]) == (2, 0, [])
+    assert status["source_image"] == "../../gel.tif"  # as the recipe records it: from the run folder
+    results = json.loads(_run("results", "show", run).output)
+    assert {lane["lane_index"] for lane in results["lanes"]} == {0, 1}
+    assert "lane_index" in _run("results", "show", run, "--format", "csv").output
+    refit = json.loads(_run("fit", "refit-lane", run, "--lane", "1", "--plot").output)
+    assert (Path(run) / refit["files"]["plot"]).exists()
+    assert (Path(run) / refit["files"]["report"]).exists()
+
+
+def test_lanes_detect_runs_the_detection_once_with_the_overlay(gel_image, run_dir, monkeypatch):
+    from gelpy.core import lanes as core_lanes
+    from gelpy.runfolder import commands as run_commands
+
+    calls = []
+    original = core_lanes.detect_lane_centers
+
+    def counting(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(core_lanes, "detect_lane_centers", counting)
+    monkeypatch.setattr(run_commands, "detect_lane_centers", counting)
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    detected = json.loads(_run("lanes", "detect", run_dir, "--n-lanes", "4").stdout)
+    assert (Path(run_dir) / detected["overlay"]).exists()
+    assert len(calls) == 1
+
+
+def test_the_overlay_uses_the_row_bounds_of_the_detection(gel_image, run_dir, monkeypatch):
+    from gelpy import render
+
+    drawn = {}
+    original = render.render_lane_detection
+
+    def spy(*args, **kwargs):
+        drawn.update(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(render, "render_lane_detection", spy)
+    _run("init", run_dir, gel_image, "--n-lanes", "4")
+    _run("lanes", "detect", run_dir, "--n-lanes", "4", "--y-start", "30", "--y-end", "200")
+    assert (drawn["y_start"], drawn["y_end"]) == (30, 200)

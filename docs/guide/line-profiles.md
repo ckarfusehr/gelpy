@@ -23,9 +23,10 @@ cached as one JSON array per lane under `cache/profiles/`. The strip is averaged
 so the profile stays in the intensity units of the canonical image no matter how wide the
 strip is.
 
-The array being reduced is the background-corrected image when a background stage is
-configured, and the decoded canonical image otherwise (in that case no background cache entry
-is written at all). By that point signal is always bright, so a band is always a maximum.
+The array being reduced is the background-corrected image. gelpy refuses to extract profiles
+from a run that has no background stage (`background_required`); only with `--allow-raw` is it
+the decoded canonical image instead, and then no background cache entry is written at all. By
+that point signal is always bright, so a band is always a maximum.
 
 The axis is the image row index, i.e. distance along the migration direction in pixels. gelpy
 never rotates or transposes the source — there is no image rotation or transpose anywhere in
@@ -55,8 +56,9 @@ gelpy background remove "$RUN" --format text
 gelpy profiles extract "$RUN" --plot --format text
 ```
 
-`profiles extract` is what fills `cache/profiles/`. The plot is optional; the fit engine reads
-the same cached arrays.
+`profiles extract` is what fills `cache/profiles/`, and it needs the `background remove` line
+above: on a run without one it stops with `background_required`. The plot is optional; the fit
+engine reads the same cached arrays.
 
 ## Strip width
 
@@ -135,9 +137,9 @@ by a data-dependent quantity. Each has a degenerate case:
 
 So: use `safe` when you need raw intensity units, or when the window you are fitting could
 integrate to near zero. An unknown mode name never reaches this code: the schema types it as
-`Literal["area", "min_max", "safe"]`, so it is rejected as a `validation_error` the moment it is
-used. On `profiles extract` that config is built only inside the `--plot` branch, so without
-`--plot` an invalid mode is never parsed at all — silently discarded, not rejected (exit 0).
+`Literal["area", "min_max", "safe"]`, so it is rejected as a `validation_error` the moment the
+request is built, whether or not `--plot` is given: `profiles extract` carries the option as
+`ExtractProfilesRequest.profile`. The error's `available` lists the three names.
 
 ## Slicing
 
@@ -169,8 +171,8 @@ gelpy profiles extract "$RUN" --lane 0 --lane 1 --lane 2 --lane 3 --slice 200 90
 ```
 
 On `profiles extract` these two flags affect the PNG only — `ExtractProfilesRequest` carries a
-run folder and a lane selector, nothing else, so nothing about them is persisted. The per-lane
-profile config that *is* persisted, in `fit_config.json`, is written by `fit run` and
+run folder, a lane selector and `allow_raw`, nothing else, so nothing about them is persisted.
+The per-lane profile config that *is* persisted, in `fit_config.json`, is written by `fit run` and
 `fit refit-lane`.
 
 ## Plots without fitting

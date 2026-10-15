@@ -6,6 +6,7 @@
 # script is a complete, replayable record of the analysis.
 #
 # Usage:  bash examples/walkthrough.sh [RUN_DIR]
+# RUN_DIR is replaced when it already holds a run (see the init step): pass one you can lose.
 set -euo pipefail
 
 RUN="${1:-runs/folding_screen}"
@@ -15,7 +16,9 @@ mkdir -p "$(dirname "$RUN")"
 printf '%s\n' 'scaffold' '2 MgCl2, 500 NaCl' '4 MgCl2, 500 NaCl' '6 MgCl2, 500 NaCl' '8 MgCl2, 500 NaCl' '10 MgCl2, 500 NaCl' '150 NaCl' '300 NaCl' '400 NaCl' '500 NaCl' '600 NaCl' '700 NaCl' '6 MgCl2' '10 MgCl2' '6 MgCl2, 150 NaCl, 1/2 scaf' '10 MgCl2, 150 NaCl, 1/2 scaf' '6 MgCl2, 300 NaCl, 1/2 scaf' '10 MgCl2, 300 NaCl, 1/2 scaf' '6 MgCl2, 500 NaCl, 1/2 scaf' '10 MgCl2, 500 NaCl, 1/2 scaf' > "$LABELS"
 
 # init
-gelpy init "$RUN" "$IMAGE" --n-lanes 20 --width 180
+# --force: init refuses a folder that already holds a run (run_exists); with it a
+# second run of this script replaces the run (the cache and the history are kept).
+gelpy init "$RUN" "$IMAGE" --n-lanes 20 --width 180 --force
 
 # detect
 gelpy lanes detect "$RUN" --n-lanes 20 --apply --labels-file "$LABELS"

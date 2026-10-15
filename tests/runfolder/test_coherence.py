@@ -5,12 +5,19 @@ recipe *after* fitting, a failed fit flowing to results, source-image drift, and
 hashing hand-editable background params. See the review that motivated them.
 """
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 from skimage import io
 
-from gelpy.core.errors import SourceImageChangedError
+from gelpy.core.errors import SourceImageChangedError, to_error_response
 from gelpy.runfolder import commands, stages
+from gelpy.runfolder.layout import RunPaths
+from gelpy.runfolder.manifest import load_manifest
+from gelpy.runfolder.pipeline import Pipeline
+from gelpy.runfolder.recipe_io import load_recipe
 from gelpy.schemas.image import ImageRef
 from gelpy.schemas.lanes import LaneDefinition, LaneLayout
 from gelpy.schemas.background import BackgroundStageConfig
@@ -21,6 +28,7 @@ from gelpy.schemas.requests import (
     GetResultsRequest,
     InitRunRequest,
     RemoveBackgroundRequest,
+    SetImageRequest,
     SetLanesRequest,
     StatusRequest,
 )
@@ -107,11 +115,6 @@ def test_source_drift_raises(prepared_run, gel_image_path):
     """When the source file's bytes change, any stage that actually needs to decode
     the image refuses rather than caching the new pixels under the recipe's stale
     hash. (Fully-cached stages are correctly unaffected — nothing recomputes.)"""
-    from gelpy.runfolder.layout import RunPaths
-    from gelpy.runfolder.manifest import load_manifest
-    from gelpy.runfolder.pipeline import Pipeline
-    from gelpy.runfolder.recipe_io import load_recipe
-
     image_path, centers, w, h = gel_image_path
     # Replace the source file with genuinely different bytes (new sha + mtime).
     io.imsave(image_path, (np.random.default_rng(1).random((h, w)) * 0.5).astype(np.float32))
@@ -121,6 +124,54 @@ def test_source_drift_raises(prepared_run, gel_image_path):
     pipeline = Pipeline(paths, recipe, load_manifest(paths))
     with pytest.raises(SourceImageChangedError):
         pipeline.ensure_image()
+
+
+def _pipeline(run):
+    paths = RunPaths(run)
+    return Pipeline(paths, load_recipe(paths), load_manifest(paths))
+
+
+def test_the_changed_image_message_names_where_it_looked_and_how_the_recipe_records_it(
+    prepared_run, gel_image_path
+):
+    image_path, _, w, h = gel_image_path
+    io.imsave(image_path, (np.random.default_rng(1).random((h, w)) * 0.5).astype(np.float32))
+    with pytest.raises(SourceImageChangedError) as caught:
+        _pipeline(prepared_run).ensure_image()
+    message = str(caught.value)
+    assert f"Source image {image_path!r} (recorded as '../synthetic_gel.tif') has changed" in message
+
+
+def test_a_missing_source_image_says_where_to_put_it_back(prepared_run, gel_image_path):
+    image_path = gel_image_path[0]
+    Path(image_path).unlink()
+    with pytest.raises(FileNotFoundError) as caught:
+        _pipeline(prepared_run).ensure_image()
+    error = to_error_response(caught.value)
+    assert error.code == "not_found"  # as for any missing file: callers that branch on it keep working
+    assert repr(image_path) in error.error and "recorded as '../synthetic_gel.tif'" in error.error
+    assert repr(image_path) in error.detail and "recipe.json" in error.detail
+
+
+def test_set_image_refuses_a_file_that_is_not_the_recorded_image(gel_image_path, tmp_path, monkeypatch):
+    """``RunPaths.resolve`` honours a path that exists only relative to the working directory, as
+    gelpy 1.0 recorded paths. A different file of that name found there is not the image the
+    recipe records, and its pixels must not be interpreted in the recipe's name."""
+    _, _, w, h = gel_image_path
+    monkeypatch.chdir(tmp_path)
+    commands.init_run(
+        InitRunRequest(run_dir="run", image_path="synthetic_gel.tif", n_lanes=4, width=30)
+    )
+    paths = RunPaths("run")
+    recipe = json.loads(paths.recipe.read_text(encoding="utf-8"))
+    recipe["source_image"]["path"] = "other.tif"  # relative to the working directory, as 1.0 wrote it
+    paths.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+    io.imsave("other.tif", (np.random.default_rng(1).random((h, w)) * 0.5).astype(np.float32))
+    before = load_recipe(paths).image
+
+    with pytest.raises(SourceImageChangedError):
+        commands.set_image(SetImageRequest(run_dir="run", invert=True))
+    assert load_recipe(paths).image == before  # nothing was re-interpreted
 
 
 # --- A4: background_hash hashes validated (canonical) params -----------------

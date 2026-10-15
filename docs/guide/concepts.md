@@ -11,10 +11,11 @@ subject:
   - src/gelpy/runfolder/hashing.py
   - src/gelpy/runfolder/recipe_io.py
   - src/gelpy/runfolder/fit_config_io.py
+  - src/gelpy/utils/atomic.py
   - src/gelpy/schemas/recipe.py
   - src/gelpy/schemas/run.py
   - src/gelpy/schemas/common.py
-subject_digest: d8ef22d7fe60b676
+subject_digest: 07460f4cd225a93f
 ---
 
 Two ideas carry the whole design. A **run folder** is the unit of work and the unit of sharing.
@@ -32,7 +33,10 @@ A run folder *is* its `recipe.json`. `RunPaths.exists()` is literally
 `self.recipe.exists()`, and a command that cannot find that file fails with the
 machine-readable code `not_found`. The source image is never copied in: `recipe.json` records
 its path, size, mtime and sha256, so many run folders can analyse one 12.8 MB TIFF with
-different parameter sets without duplicating it.
+different parameter sets without duplicating it. The path is recorded relative to the run
+folder where possible (absolute when the image shares no directory with the run folder below
+the filesystem root), and the cache paths in `manifest.json` are relative to the run folder. So
+a run folder opens from any working directory and can be moved together with its image.
 
 For the file-by-file table, read [reference/run-folder.md](../reference/run-folder.md) — it is
 generated from the code, so it cannot describe a file that is not there.
@@ -48,11 +52,20 @@ Three categories, and knowing which is which tells you what is safe to delete.
   though nothing in gelpy reads it back yet — `replay` is a deferred feature.
 - **Disposable** — `manifest.json` (the cache ledger) and everything under `cache/`. Deleting
   either loses no work, but nothing regenerates on its own: a stage is re-recorded only by a
-  command that pulls that stage through the pipeline. `status` and `results show` recompute
-  nothing, so after a ledger wipe they report zero fits until a fit command re-records them
-  (the block below does exactly that).
-- **Derived** — `results.csv`, `results.json`, `report.md`, `render/*.png`. Assembled from the
-  cached fits without recomputing them.
+  command that computes it or reuses it from the cache (a fit cache hit also records the image,
+  background and profile it did not load). `status` and `results show` recompute nothing, so
+  after a ledger wipe they report zero fits until a fit command re-records them (the block
+  below does exactly that).
+- **Derived** — `results.csv`, `results.json`, `report.md`, `render/*.png` and the HTML report
+  folder `report/`. Assembled from the cached fits without recomputing them.
+
+`.gelpy.lock`, the advisory lock file that every command writing the folder holds, belongs to
+none of the three: leave it alone; it is safe to remove only while no gelpy command runs.
+
+gelpy never writes through a link inside a run folder: a link where it writes a file is replaced
+by the file, and a link where it keeps a folder (`cache/`, `render/`, `log/` or a folder below
+them), or at `log/history.jsonl` or `.gelpy.lock`, is refused with `invalid_value` before
+anything is written, until you delete the link. The run folder itself may be a link: you pass it.
 
 The loaders treat the two kinds of JSON deliberately differently. `load_manifest` catches every
 exception and returns a blank ledger — a wrong ledger costs CPU. `load_fit_config` lets the
@@ -103,7 +116,7 @@ further.
 
 | stage | hash is computed from | cached artifact |
 |---|---|---|
-| `image` | source `sha256` + `channel_strategy` + `channel_index` + `inverted` + `page` | `cache/image/<hash>.npy` |
+| `image` | source `sha256` + `channel_strategy` + `channel_index` + `inverted` + `page` + the gelpy version | `cache/image/<hash>.npy` |
 | `background` | `image_hash` + model name + **validated** params | `cache/background/<hash>.npz` |
 | `profile[lane]` | `background_hash` + that lane's `x_center_px` + `profile_width_px` | `cache/profiles/lane_NNN__<hash>.json` |
 | `fit[lane]` | `profile_hash` + the whole `LineProfileConfig` + the whole `FitConfig` | `cache/fits/lane_NNN__<hash>.json` |
@@ -112,8 +125,13 @@ The four interpretation fields are exactly the inputs of `apply_image_meta`, the
 replay that turns file bytes into the canonical float64 array; the `sha256` pins *which* bytes.
 Nothing else in `ImageMeta` touches a pixel.
 
+Because every other hash chains off `image`, a new gelpy version recomputes every stage on first
+use and never reuses a cache an older version wrote.
+
 With no background stage configured, `background_hash` returns `image_hash` unchanged: a
-passthrough, so no background cache entry is ever created or consulted.
+passthrough, so no background cache entry is ever created or consulted. `profiles extract`,
+`fit run` and `fit refit-lane` do not run in that state unless `--allow-raw` says the raw image is
+meant.
 
 The `FitConfig` folded into `fit_hash` includes the RNG `seed`, which is what makes even the
 stochastic `bayesian` tier content-addressed and cacheable.
@@ -131,7 +149,8 @@ Every exclusion below is a decision, not an oversight.
 - **Cosmetics are in no hash at all.** A lane's `label`, `lanes.label_rotation` and the entire
   `contrast` block. Verified directly: changing `contrast.gamma.gamma` from 0.1 to 0.4 moves
   none of `image_hash`, `background_hash` or `profile_hash`. Renaming a lane must not cost you
-  a fit.
+  a fit, so a cached fit keeps the label it was fitted under; the results are assembled with the
+  label the recipe has now.
 - **Image provenance is not in `image_hash`.** `polarity`, `polarity_source`,
   `polarity_confidence`, `polarity_reason`, `original_dtype`, `original_shape`,
   `source_channels`, `source_pages` all describe *how the decision was reached*. `inverted` is
@@ -197,11 +216,20 @@ possible because the store outlived the manifest.
 
 Briefly, because it is the part you should never have to think about:
 
-- Every cache artifact and every precious JSON goes through one writer: write to a dotfile temp
-  sibling in the same directory named with the writing process's pid, then `os.replace`. Same
-  filesystem, so the rename is atomic; a failed compute leaves no partial file and no orphan
-  temp. (`np.save`/`np.savez` append their own extension to a path and would mangle that temp
-  name, so those two are handed an open file object instead.)
+- Every file gelpy writes in a run folder -- the cache, the precious JSON, `results.csv`,
+  `report.md`, the figures, the HTML report -- goes through one writer, `utils/atomic.py`, except
+  the two it opens in place, `log/history.jsonl` (appended to) and `.gelpy.lock`, which are opened
+  without following a link. The writer writes to a temp file in the same directory,
+  named `.<name>.<random>.tmp` and created exclusively with the mode `0o666` (so a link planted at
+  a name gelpy would have used is never followed, and the kernel takes the umask off the mode: the
+  file gets the mode `open` would have given it), then `os.replace`. Same filesystem, so the rename
+  is atomic; a link at the destination is replaced and never written through; a failed compute
+  leaves the old file, no partial file and no orphan temp. A process that is killed in the middle
+  of a write (`kill -9`, a power cut) can leave its temp file: the report folder's are removed by
+  the next `report html` and by `init --force`, and one in `cache/` or `render/` does no harm,
+  because nothing reads a dot-named file there. (`np.save`/`np.savez` append their own extension
+  to a path and would mangle the temp name, so those two are handed the open file object instead,
+  and so is matplotlib's `savefig`.)
 - An unreadable cache file is unlinked and recomputed rather than being fatal. The fit stage
   goes further: a structurally valid JSON that no longer validates as a `LaneFitResult` — after
   a schema change, say — also counts as corrupt.
@@ -240,8 +268,15 @@ folder is 102 MB for a 12.8 MB source.
 
 The same chain also catches upstream edits. Shift lane 0's `x_center_px` by 7 px in
 `recipe.json` and its expected `fit_hash` no longer matches the recorded one: `status` moves
-that lane from `n_fit` to `n_stale`, and `results show` drops its rows rather than reporting a
-fit that no longer reflects intent.
+that lane from `n_fit` to `n_stale` and names the lane's `profile` and `fit` stages under
+`stale_stages`, and `results show` drops its rows rather than reporting a fit that no longer
+reflects intent. A fit is current when the fit the recipe calls for is in the cache, not when the
+ledger's recorded hash says so: the cache keeps every fit it computed, so after you change your
+mind back `stale_stages` is empty again and so is `n_stale`, and `results show` has the fits back,
+with no fit command. A deleted cache file is judged the same way, and stays in `stale_stages` until
+a command that needs it runs: a fit that is cached never reads what is upstream of it, so `fit run`
+leaves a missing image, background or profile listed, and a render or `profiles extract` computes it
+again.
 
 ## A typo is an error, not a silent no-op
 
@@ -256,8 +291,12 @@ gelpy status "$RUN.typo"
 ```
 
 ```console
-{ "error": "validation error", "code": "validation_error",
-  "detail": "[{\"type\": \"extra_forbidden\", \"loc\": [\"lanes\", \"0\", \"fit\", \"baseline\", \"polly_order\"], ...
+{
+  "error": "FitConfigStore: lanes.0.fit.baseline.polly_order: Extra inputs are not permitted. `gelpy schema FitConfigStore` prints the contract.",
+  "code": "validation_error",
+  "detail": "[{\"type\": \"extra_forbidden\", \"loc\": [\"lanes\", \"0\", \"fit\", \"baseline\", \"polly_order\"], \"msg\": \"Extra inputs are not permitted\", \"input\": 2}]",
+  "available": null
+}
 ```
 
 It exits non-zero and writes that to stderr, naming the exact path of the bad key.
@@ -266,24 +305,34 @@ It exits non-zero and writes that to stderr, naming the exact path of the bad ke
 
 All four were reproduced against the current code while writing this page.
 
-1. **The ledger records `cache_path` exactly as the run directory was given, so a run folder is
-   not portable.** Move or rename a folder after fitting and `status` reports `n_fit: 0` while
-   `results show` returns no rows — the recorded paths point at the old location. Worse, a
-   *copy* whose original still exists reads the original's cache files. Pass a relative run
-   directory and the ledger becomes cwd-dependent the same way. The cache itself is fine: one
-   `fit refit-lane` per lane re-records the ledger with `"recomputed": []`. Prefer absolute run
-   directories, and re-run the fit command after moving or copying a folder.
-2. **`gelpy init` on an existing run folder is destructive to precious files.** Measured: it
-   reset `background` from `robust_plane` to `null` in `recipe.json`, emptied `fit_config.json`
-   (2 lane entries to 0), cleared the manifest (2 stage records to 0), and left 7 of the
-   folder's 8 cache files unreachable. Only the canonical image `.npy` is still addressed by
-   the rewritten recipe: `background: null` makes `background_hash` equal `image_hash`, which
-   re-keys both profiles and all four fits. `init` a new directory instead.
+1. **A run folder written by 1.0 is not portable.** 1.0 recorded the image path in
+   `recipe.json` and every `cache_path` in `manifest.json` exactly as the command line gave
+   them, so a relative path meant relative to the working directory. Later versions open such a
+   folder from the directory it was made in, and nowhere else: a command that has to re-read
+   the image fails with `code: "not_found"`, and the ledger's paths point at the old location.
+   Measured on a 1.0 run moved together with its image and opened from a third directory:
+   `fit refit-lane` failed with `not_found` for the image. After `source_image.path` in
+   `recipe.json` was set to the image's path relative to the run folder, the same command
+   worked and re-recorded that lane's stages relative to the run folder. A stage that no
+   command has re-recorded keeps its 1.0 record. Run folders created by 1.1 or later have no
+   such limit.
+2. **`gelpy init --force` on an existing run folder replaces its precious files.** Without the
+   flag, `init` refuses a folder that already holds a run (`code: "run_exists"`). With it,
+   measured: it reset `background` from `robust_plane` to `null` in `recipe.json`, emptied
+   `fit_config.json` (2 lane entries to 0), cleared the manifest (2 stage records to 0), and
+   left 7 of the folder's 8 cache files unreachable. Only the canonical image `.npy` is still
+   addressed by the rewritten recipe: `background: null` makes `background_hash` equal
+   `image_hash`, which re-keys both profiles and all four fits. It also removes what the old run
+   derived (`results.csv`, `results.json`, `report.md`, the files the marker of `report/` lists
+   and the temp files of killed writes there, and `render/`); the cache and `log/history.jsonl`
+   stay, and so does a `report/` that no marker claims. A `report` that is a link is unlinked, and
+   what it points to is not touched. `init` a new directory instead to keep the old run.
 3. **A broad `fit run` overwrites per-lane refit intent.** The store is last-write-wins and
    `fit run` seeds every lane in its selection. Measured: after a `refit-lane --lane 0
    --slice 200 1200`, a plain `fit run --lane 0 --lane 1` reset lane 0's stored slice back to
    the default. Refit stragglers *after* the broad pass, not before.
 4. **Superseded cache files are never collected.** There is no `clean` command. Two knob changes
-   on one lane left three fit files for it; a re-`init` left 7 of the folder's 8 cache files
-   unreachable (limitation 2). Deleting `cache/` (and `manifest.json` with it) is the only
-   cleanup, and it is safe by definition.
+   on one lane left three fit files for it; a `--force` re-`init` left 7 of the folder's 8 cache
+   files unreachable (limitation 2). A new gelpy version supersedes every stage at once: the first fit
+   under it wrote its own image, profile and fit files next to the old ones. Deleting `cache/`
+   (and `manifest.json` with it) is the only cleanup, and it is safe by definition.

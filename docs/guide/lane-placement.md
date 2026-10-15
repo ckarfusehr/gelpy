@@ -6,7 +6,7 @@ subject:
   - src/gelpy/core/lanes.py
   - src/gelpy/schemas/lanes.py
   - src/gelpy/cli/_pick.py
-subject_digest: 3b023fb615c21bf4
+subject_digest: a3ae25a08c3b7f15
 ---
 
 Every downstream number depends on this step. A lane profile is the column mean over a strip
@@ -47,7 +47,7 @@ gelpy lanes detect "$RUN" --apply
 { "centers": [149.30526315789496, ..., 4489.438596491229], "pitch": 228.42807017543862,
   "profile_width": 159, "n_detected": 20, "n_expected": 20, "confidence": "ok",
   "confidence_reason": "", "projection_source": "full", "y_band": null, "applied": true,
-  "overlay": ".../render/lane_detect.png" }
+  "overlay": "render/lane_detect.png" }
 ```
 
 ## What the fit actually does
@@ -123,9 +123,9 @@ Measured cost of the difference on this 4688 x 1364 image, warm cache and `--no-
 times: 4 s pinned to `full` against 16 s with the default, i.e. about 4x (the absolute times are
 machine- and load-dependent, the ratio is not). The default pays one matched-filter sweep for
 its pass-1 pitch plus a full detection per candidate band -- 5 sweeps on this gel, 11.4 s of the
-strategy's 11.5 s. Both sides roughly double once the overlay renders, because `cli/_render.py`
-re-runs the detection from scratch to recover the projection to plot. Pinning `full` on a gel
-you already know is single-band is free.
+strategy's 11.5 s. The overlay adds under a second to either: `lanes detect` draws it from the
+detection it already ran and does not run it again. Pinning `full` on a gel you already know
+is single-band is free.
 
 Comb-SNR being computed on the min-max-normalized projection means it rewards a *clean*
 projection, not a high-contrast one: averaging fewer rows leaves more per-column noise, which
@@ -212,7 +212,10 @@ letting dust peaks in can drag the origin.
 clicks (or `--all` for every center) and writes them through the same path as `lanes set`. It
 displays the image at the run's *configured gamma contrast*, not the overlay's fixed percentile
 stretch, so a very faint gel may want `gelpy contrast set` first. It needs a real matplotlib
-backend (MacOSX, QtAgg or TkAgg) and raises a clear error if none is available -- so it is not
+backend (MacOSX, QtAgg or TkAgg) and a display. Without one it answers `display_required`, whose
+`detail` says to set the lanes with `lanes set --endpoints` or `--x-center`, or to run it on a
+machine with a display; a window that is closed (or Enter pressed) before the clicks are done
+answers `pick_cancelled`, whose `detail` says to run it again, and nothing is changed. So it is not
 for agents or headless runs, which is why this block is not executed:
 
 ```bash

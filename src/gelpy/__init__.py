@@ -6,4 +6,4 @@ contracts and ``gelpy.runfolder.commands`` for the programmatic (request -> resu
 API.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

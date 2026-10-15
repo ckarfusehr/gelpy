@@ -2,11 +2,11 @@
 # Windows, bounds, lane groups and masks differ for every gel -- adapt, do not run as-is.
 """Constrained per-lane component fit of gelpy's background-corrected line profiles.
 
-For when the user prescribes the peak set and the free-form ``gelpy fit run`` does not honour
+For when the user prescribes the peak set and the free-form ``gelpy fit run`` does not honor
 it. Components (one each, fixed structure):
 
   well    : EMG (Gaussian + exponential tail toward +y) right after the well-cavity dip
-  smear   : generalised Gaussian exp(-(|y-mu|/alpha)^p) between well and band
+  smear   : generalized Gaussian exp(-(|y-mu|/alpha)^p) between well and band
   middle  : optional Gaussian between well and band (only for the groups given with --middle)
   band    : EMG with its exponential tail toward the well (slow side) = leading band
   fastest : bi-Gaussian = the fastest-migrating species
@@ -14,14 +14,17 @@ it. Components (one each, fixed structure):
 plus a constant offset bounded to +/-2 sigma noise. Narrow dust spikes are masked (weight 0).
 Fit window per lane: from the zero-crossing after the well-cavity dip to --fit-end. The
 well-cavity dip is the below-baseline dip where the well cuts into the gel; it is not signal.
-SKILL.md, section "A well-cavity dip is not signal", shows how to find it on a profile plot.
+judgment.md, section "A well-cavity dip is not signal", shows how to find it on a profile plot.
 
 y is the position along the profile (image row, px). Read every window off this gel's own
 profile plots (``gelpy profiles extract RUN_DIR --lane all --plot``); positions never transfer
 between gels. Lanes are gelpy's 0-based indices throughout (CLI, tables, file names).
 
 Reads:  RUN_DIR/recipe.json and the cached background-corrected profiles (refreshed first with
-        ``gelpy profiles extract RUN_DIR --lane all``)
+        ``gelpy profiles extract RUN_DIR --lane all``). A run without background removal stops the
+        script: gelpy refuses its profiles (``background_required``), and the components are fitted
+        on background-corrected profiles only. Run ``gelpy background remove RUN_DIR`` and check
+        ``gelpy background show RUN_DIR`` first.
 Writes: OUT/figures/fits/lane_NNN.png, OUT/figures/fit_overview_<group>.png,
         OUT/figures/fractions_<group>.png, OUT/figures/fastest_area.png,
         OUT/figures/band_migration.png, OUT/results/component_fits.csv/.json
@@ -70,7 +73,7 @@ SQRT2 = np.sqrt(2.0)
 BOUNDS = {
     "well_sigma": (1.0, 6.0),       # Gaussian core of the well peak
     "well_tau": (0.3, 10.0),        # its exponential tail toward +y
-    "smear_alpha": (30.0, 250.0),   # generalised-Gaussian half-width
+    "smear_alpha": (30.0, 250.0),   # generalized-Gaussian half-width
     "smear_p": (1.0, 8.0),          # its exponent: ~1 long-tailed, large = flat-topped
     "middle_sigma": (5.0, 18.0),
     "band_sigma": (2.0, 25.0),
@@ -83,16 +86,16 @@ START = {  # start values of the component widths
 }
 AREA_WIDTH = {"well": 8.0, "middle": 25.0}  # start area = start height x this (band, fastest: x 2.5 x width)
 WELL_SEARCH = 25         # searched after the window start for the well peak
-WELL_SHIFT = 8           # the well centre may move this far past its start value
+WELL_SHIFT = 8           # the well center may move this far past its start value
 DIP_TOLERANCE = 6        # a lane's dip crossing may differ this much from its group median
-SMEAR_AFTER_WELL = 30    # smear centre at least this far after the well peak
+SMEAR_AFTER_WELL = 30    # smear center at least this far after the well peak
 SMEAR_BEFORE_BAND = 40   # ... and at least this far before the band maximum
 PLATEAU_GAP = (20, 50)   # smear start height: median from well peak + 20 to band maximum - 50
-BAND_START = 3           # band start centre this far toward the well from the band maximum
-BAND_SHIFT = (25, 10)    # band centre may move 25 toward the well and 10 away from the maximum
-MIDDLE_FREEDOM = 12      # the middle-band centre may move this far from its start value
-FASTEST_INSET = 5        # fastest start centre kept this far inside --fastest-window
-FASTEST_SMOOTH = 15      # median filter that locates the fastest start centre
+BAND_START = 3           # band start center this far toward the well from the band maximum
+BAND_SHIFT = (25, 10)    # band center may move 25 toward the well and 10 away from the maximum
+MIDDLE_FREEDOM = 12      # the middle-band center may move this far from its start value
+FASTEST_INSET = 5        # fastest start center kept this far inside --fastest-window
+FASTEST_SMOOTH = 15      # median filter that locates the fastest start center
 DUST_SIGMA = 6.0         # spike threshold above a running median, in noise sigmas
 DUST_MEDIAN = 13         # running-median window
 DUST_MAX_RUN = 7         # only runs this narrow count as dust; mask wider specks by hand (--mask)
@@ -107,6 +110,34 @@ def safe(name: str) -> str:
     return re.sub(r"\W+", "_", name)
 
 
+# A spreadsheet evaluates a text cell that starts with one of these as a formula. gelpy's own
+# results.csv guards the same prefixes the same way; the helper is inline because an example must
+# not import gelpy internals that are not public API.
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def spreadsheet_safe(value):
+    """A CSV cell that a spreadsheet will not evaluate: a leading apostrophe marks text.
+
+    Lane labels and group names are the user's text (``=1+1`` is a legal label); numbers, negative
+    ones included, are returned unchanged."""
+    return "'" + value if isinstance(value, str) and value.startswith(FORMULA_PREFIXES) else value
+
+
+def write_csv(path, rows, keys):
+    """``rows`` (dicts) as a CSV file, UTF-8, every text cell guarded like gelpy's results.csv.
+
+    Python 3.10's csv module leaves a field with a bare CR unquoted (3.11 and later quote it), and a
+    reader that takes a bare CR for a record break would start a record at the text after it,
+    possibly a live formula. So when any cell holds a CR, every cell that is not a number is quoted."""
+    safe = [{k: spreadsheet_safe(r[k]) for k in keys} for r in rows]
+    has_cr = any(isinstance(v, str) and "\r" in v for r in safe for v in r.values())
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        wr = csv.DictWriter(f, fieldnames=keys, quoting=csv.QUOTE_NONNUMERIC if has_cr else csv.QUOTE_MINIMAL)
+        wr.writeheader()
+        wr.writerows(safe)
+
+
 def parse_lanes(spec: str) -> list[int]:
     """'0-9' or '0,2,4-6' -> lane indices."""
     out = []
@@ -119,16 +150,20 @@ def parse_lanes(spec: str) -> list[int]:
 def load_profiles(run: str, lanes: list[int]) -> dict[int, np.ndarray]:
     """Current full-length profile per lane, from gelpy's profile cache."""
     # Refresh first: manifest.json keeps a stale entry after a recipe edit until the next extract.
+    # Without --allow-raw on purpose: that flag would measure the raw image, each lane with its own
+    # background floor, and the fitted components would absorb it. A run without background removal
+    # is refused (gelpy answers background_required); main() stops before for the same reason, and
+    # any other refusal is printed with gelpy's own error, never swallowed.
     r = subprocess.run([sys.executable, "-m", "gelpy", "profiles", "extract", run, "--lane", "all"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8")
     if r.returncode:
         sys.exit(f"`gelpy profiles extract {run} --lane all` failed:\n{r.stderr.strip()}")
-    with open(os.path.join(run, "manifest.json")) as f:
+    with open(os.path.join(run, "manifest.json"), encoding="utf-8") as f:
         stages = json.load(f)["stages"]
     out = {}
     for i in lanes:
         h = stages[f"profile:lane={i}"]["hash"]
-        with open(os.path.join(run, "cache", "profiles", f"lane_{i:03d}__{h}.json")) as f:
+        with open(os.path.join(run, "cache", "profiles", f"lane_{i:03d}__{h}.json"), encoding="utf-8") as f:
             out[i] = np.asarray(json.load(f), dtype=float)
     return out
 
@@ -378,7 +413,7 @@ def parse_args():
     ap.add_argument("--band-window-for", nargs=3, action="append", default=[],
                     metavar=("GROUP", "Y0", "Y1"), help="per-group --band-window (repeatable)")
     ap.add_argument("--fastest-window", type=int, nargs=2, required=True, metavar=("Y0", "Y1"),
-                    help="y-range allowed for the fastest component's centre")
+                    help="y-range allowed for the fastest component's center")
     ap.add_argument("--noise-window", type=int, nargs=2, required=True, metavar=("Y0", "Y1"),
                     help="signal-free y-range for the noise estimate")
     ap.add_argument("--middle", action="append", default=[], metavar="GROUP",
@@ -404,10 +439,12 @@ def main():
     run = cfg.run_dir
     if not os.path.isfile(os.path.join(run, "recipe.json")):
         sys.exit(f"{run}: not a gelpy run folder (no recipe.json)")
-    with open(os.path.join(run, "recipe.json")) as f:
+    with open(os.path.join(run, "recipe.json"), encoding="utf-8") as f:
         rec = json.load(f)
     if rec.get("background") is None:
-        sys.exit(f"no background removal in {run}: run `gelpy background remove {run}` first")
+        sys.exit(f"no background removal in {run}: gelpy refuses profiles without it (background_required), "
+                 "and the components are fitted on background-corrected profiles only. "
+                 f"Run `gelpy background remove {run}`, check `gelpy background show {run}`, then repeat")
     labels = {lane["index"]: lane["label"] for lane in rec["lanes"]["lanes"]}
     groups = {}
     for g in cfg.group:
@@ -576,14 +613,10 @@ def main():
         plt.close(fig)
 
     rows = [asdict(lf) for lfs in fits.values() for lf in lfs]
-    with open(os.path.join(res_dir, "component_fits.json"), "w") as f:
+    with open(os.path.join(res_dir, "component_fits.json"), "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=1)
     keys = [k for k in rows[0] if k not in ("theta", "masked_ranges")]
-    with open(os.path.join(res_dir, "component_fits.csv"), "w", newline="") as f:
-        wr = csv.DictWriter(f, fieldnames=keys)
-        wr.writeheader()
-        for r in rows:
-            wr.writerow({k: r[k] for k in keys})
+    write_csv(os.path.join(res_dir, "component_fits.csv"), rows, keys)  # labels are user text
 
 
 if __name__ == "__main__":

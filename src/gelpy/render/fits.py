@@ -10,6 +10,7 @@ import numpy as np
 from ..core.peaks import peak_registry
 from ..schemas.peaks import BandFit, LaneFitResult
 from ..utils.units import cm_to_inch
+from ._figure import plain_text, save_figure
 
 # Distinct-ish colors per component class (well/smear/dust get their own so the plot reads
 # the way the labels do); sample bands cycle through the default color list.
@@ -33,8 +34,6 @@ def render_lane_fit(
 ) -> Path:
     """Two panels: (left) raw profile + baseline + total model; (right) baseline-subtracted
     signal with each component colored by class, plus a residual strip."""
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     x = np.arange(len(prepared_profile), dtype=np.float64)
     baseline = np.asarray(baseline, dtype=np.float64)
     signal = prepared_profile - baseline
@@ -86,7 +85,7 @@ def render_lane_fit(
     # only as wide as its own panel, so a long lane label reliably overlapped its neighbor's.
     label = lane_result.label
     title_fontsize = 12 if len(label) <= 30 else 9
-    fig.suptitle(label, fontsize=title_fontsize, wrap=True, y=0.99)
+    fig.suptitle(plain_text(label), fontsize=title_fontsize, wrap=True, y=0.99)
     top = 0.90
     if lane_result.confidence_reasons:
         fig.text(
@@ -95,6 +94,4 @@ def render_lane_fit(
         )
         top = 0.83
     fig.tight_layout(rect=(0, 0, 1, top))
-    fig.savefig(out_path, dpi=300)
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path, dpi=300)

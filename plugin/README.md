@@ -6,10 +6,11 @@ because two copies of a skill drift apart.
 
 ```
 plugin/
-  .claude-plugin/plugin.json      the manifest
-  skills/gelpy-analyze/SKILL.md   the skill
-  skills/gelpy-analyze/examples/  scripts the skill adapts (component fit, PDF report)
-  marketplace-entry.json          the snippet to paste into a marketplace (not delivered)
+  .claude-plugin/plugin.json        the manifest
+  skills/gelpy-analyze/SKILL.md     the skill: which command or tool does each step
+  skills/gelpy-analyze/judgment.md  the skill: what to check and how to decide
+  skills/gelpy-analyze/examples/    scripts the skill adapts (component fit, PDF report)
+  marketplace-entry.json            the snippet to paste into a marketplace (not delivered)
 ```
 
 ## What the skill does
@@ -19,6 +20,10 @@ from the image, **verify the overlay**, remove the background, fit, inspect ever
 the stragglers. Most of it is about what not to trust: that lane positions never transfer
 between gels, why `status: "ok"` is not a quality signal, and when a low-confidence lane needs
 a human. Without the skill, an agent has to guess at these.
+
+The skill is two files. `SKILL.md` says which command or tool does each step; `judgment.md` holds
+what to check and how to decide, and names no command, flag or tool, so it applies whichever way
+gelpy is driven.
 
 ## Installing it without a marketplace
 
@@ -32,7 +37,7 @@ cp -R plugin/skills/gelpy-analyze ~/.claude/skills/
 ```
 
 `~/.claude/skills/` makes it available in every project; `.claude/skills/` inside the project
-you analyse gels in limits it to that project (not inside this repository: a second
+you analyze gels in limits it to that project (not inside this repository: a second
 `SKILL.md` here fails `tests/test_packaging.py`). A copy does not update itself. After pulling
 a new version, remove the old copy and copy again, as above: `cp -R` over an existing copy
 keeps files that the new version no longer has.
@@ -94,5 +99,5 @@ After editing the skill:
 
 ```bash
 claude plugin validate ./plugin      # if the Claude Code CLI is available
-pytest tests/docs/test_plugin.py -q  # layout, manifest, and sync-tool checks
+pytest tests/docs/test_plugin.py -q  # layout, manifest, sync tool; the commands and tools the skill names exist
 ```

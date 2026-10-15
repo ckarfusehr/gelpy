@@ -28,6 +28,7 @@ import inspect
 import re
 import subprocess
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -315,6 +316,9 @@ def test_claim_error_codes_are_stable_and_complete():
         "source_image_changed",
         "nonfinite_image",
         "unsupported_image",
+        "decode_error",
+        "invalid_value",
+        "image_too_large",
     } <= codes
 
 
@@ -436,6 +440,233 @@ def test_claim_area_fraction_is_on_the_true_signal_basis():
     assert "signal_area" in LaneFitResult.model_fields
     description = (LaneFitResult.model_fields["signal_area"].description or "").lower()
     assert "baseline" in description
+
+
+def test_claim_image_size_limits():
+    """Before decoding, gelpy refuses a file over 100 million pixels (summed over its pages) or
+    over 64 pages; GELPY_MAX_PIXELS and GELPY_MAX_PAGES change the limits."""
+    from gelpy.core import image_io
+
+    assert image_io.DEFAULT_MAX_PIXELS == 100_000_000
+    assert image_io.DEFAULT_MAX_PAGES == 64
+    assert (image_io.MAX_PIXELS_ENV, image_io.MAX_PAGES_ENV) == (
+        "GELPY_MAX_PIXELS",
+        "GELPY_MAX_PAGES",
+    )
+
+
+def test_claim_lane_count_cap():
+    """A request, a recipe.json and a fit_config.json hold at most 1000 lanes; over it, a
+    validation_error names the field and the limit."""
+    import json
+
+    from pydantic import ValidationError
+
+    from gelpy.core.errors import to_error_response
+    from gelpy.schemas import FitConfigStore, InitRunRequest, LaneLayout
+    from gelpy.schemas.lanes import MAX_LANES
+
+    assert MAX_LANES == 1000
+    InitRunRequest(run_dir="run", image_path="gel.tif", n_lanes=1000)
+    with pytest.raises(ValidationError) as refused:
+        InitRunRequest(run_dir="run", image_path="gel.tif", n_lanes=1001)
+    response = to_error_response(refused.value)
+    assert response.code == "validation_error"
+    assert "n_lanes" in response.error and json.loads(response.detail)[0]["ctx"] == {"le": 1000}
+    lane = {"index": 0, "label": "1", "x_center_px": 1.0}
+    with pytest.raises(ValidationError):
+        LaneLayout.model_validate({"lanes": [lane] * 1001, "profile_width_px": 3})
+    with pytest.raises(ValidationError):
+        FitConfigStore.model_validate({"lanes": {str(i): {} for i in range(1001)}})
+
+
+def test_claim_csv_formula_cells_are_text():
+    """results.csv writes a text cell that starts with =, +, -, @, a tab or a carriage return
+    with a leading apostrophe, and leaves numbers alone."""
+    from gelpy.runfolder.results import spreadsheet_safe
+
+    for prefix in ("=", "+", "-", "@", "\t", "\r"):
+        assert spreadsheet_safe(prefix + "x") == "'" + prefix + "x"
+    assert spreadsheet_safe(-1.5) == -1.5
+
+
+def test_claim_html_report_has_no_scripts(tmp_path):
+    """The HTML report page carries no script, inline style, event handler or outside
+    reference, and escapes every text value."""
+    from gelpy.render.html_report import Figure, ReportContent, render_html_report
+    from gelpy.schemas.fit_config import FitConfigStore
+    from gelpy.schemas.results import AnalysisResult
+    from gelpy.schemas.run import RunStatus
+
+    recipe, lane = _demo_recipe()
+    hostile = lane.model_copy(update={"label": '<img src=x onerror="alert(1)">'})
+    recipe = recipe.model_copy(
+        update={"lanes": recipe.lanes.model_copy(update={"lanes": [hostile]})}
+    )
+    status = RunStatus(run_dir="run", source_image="a.tif", image_width=2000, image_height=500)
+    content = ReportContent(
+        run_name="run", gelpy_version="0", recipe=recipe, status=status,
+        result=AnalysisResult(), fit_config=FitConfigStore(),
+        gel=[Figure(src="img/gel.png", caption="a gel")],
+    )
+    page = render_html_report(content, tmp_path).read_text(encoding="utf-8")
+
+    class Tags(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.found = []
+
+        def handle_starttag(self, tag, attrs):
+            self.found.append((tag, dict(attrs)))
+
+    parser = Tags()
+    parser.feed(page)
+    assert not {"script", "style"} & {tag for tag, _ in parser.found}
+    assert not [a for _, attrs in parser.found for a in attrs if a.startswith("on") or a == "style"]
+    assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in page
+    references = [v for _, attrs in parser.found for k, v in attrs.items() if k in ("src", "href")]
+    assert references, "the page should have something to refer to"
+    assert not [v for v in references if re.match(r"[a-z][a-z0-9+.-]*:|//", v)]  # nothing outside its folder
+
+
+def test_claim_html_report_css_variables():
+    """The variables the guide lists are exactly the ones the default stylesheet defines."""
+    from gelpy.render.html_report import DEFAULT_CSS
+
+    page = (DOCS / "guide" / "html-report.md").read_text(encoding="utf-8")
+    documented = set(re.findall(r"^\| `(--gelpy-[a-z-]+)` \|", page, re.M))
+    defined = set(re.findall(r"(--gelpy-[a-z-]+)\s*:", DEFAULT_CSS))
+    assert documented == defined
+
+
+def _tiny_gel(path):
+    """A small synthetic gel: four lanes of two bands, the cheapest run a report can be built from."""
+    import numpy as np
+    from skimage import io
+
+    y = np.arange(250)
+    bands = sum(a * np.exp(-((y - m) ** 2) / 72.0) for a, m in ((1.0, 80), (0.7, 160)))
+    image = np.full((250, 300), 5.0)
+    for centre in (40, 110, 180, 250):
+        image[:, centre - 15 : centre + 16] += bands[:, None]
+    io.imsave(str(path), (image / image.max()).astype(np.float32))
+
+
+def test_claim_html_report_replaces_only_its_own_files(tmp_path):
+    """`report html` writes only into a folder that is new, empty or holds an earlier report; a
+    rebuild replaces its own files, drops those the new build did not write, and never touches
+    another file."""
+    import json
+
+    from typer.testing import CliRunner
+
+    from gelpy.cli.app import app
+
+    runner = CliRunner()
+
+    def invoke(*args):
+        return runner.invoke(app, [str(a) for a in args])
+
+    _tiny_gel(tmp_path / "gel.tif")
+    run_dir = tmp_path / "run"
+    assert invoke("init", run_dir, tmp_path / "gel.tif", "--n-lanes", "4", "--width", "30").exit_code == 0
+    assert invoke("lanes", "set", run_dir, "--linspace", "40", "250", "4").exit_code == 0
+    theme = tmp_path / "theme.css"
+    theme.write_text(":root { --gelpy-accent: #8250df; }\n", encoding="utf-8")
+
+    first = invoke("report", "html", run_dir, "--css", theme)
+    assert first.exit_code == 0, first.output
+    assert "theme.css" in json.loads(first.stdout)["files"]
+    report = run_dir / "report"
+    (report / "mine.txt").write_text("notes\n", encoding="utf-8")  # the marker does not list it
+
+    again = invoke("report", "html", run_dir)  # no stylesheet this time
+    assert again.exit_code == 0, again.output
+    assert not (report / "theme.css").exists()  # the earlier build wrote it, this one did not
+    assert (report / "mine.txt").read_text(encoding="utf-8") == "notes\n"
+    listed = json.loads((report / ".gelpy-report.json").read_text(encoding="utf-8"))["files"]
+    assert "theme.css" not in listed and "index.html" in listed
+
+    foreign = tmp_path / "foreign"  # files, and no marker: not a report of gelpy's
+    foreign.mkdir()
+    (foreign / "a.txt").write_text("a\n", encoding="utf-8")
+    refused = invoke("report", "html", run_dir, "--out", foreign)
+    assert refused.exit_code == 1
+    assert json.loads(refused.stderr)["code"] == "invalid_value"
+    assert [p.name for p in foreign.iterdir()] == ["a.txt"]
+
+    # a marker is a plain file anyone can write: it names only what a build writes, and the run
+    # folder is no target whatever it holds
+    forged = {"gelpy_version": "1", "fingerprint": "x", "files": ["index.html", "recipe.json"]}
+    (run_dir / ".gelpy-report.json").write_text(json.dumps(forged), encoding="utf-8")
+    planted = invoke("report", "html", run_dir, "--out", run_dir)
+    assert planted.exit_code == 1
+    assert json.loads(planted.stderr)["code"] == "invalid_value"
+
+    # and it lists what an earlier build wrote: a marker that lists nothing is no licence to write
+    # over the files it does not list
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "index.html").write_text("mine\n", encoding="utf-8")
+    empty = {"gelpy_version": "1", "fingerprint": "", "files": []}
+    (other / ".gelpy-report.json").write_text(json.dumps(empty), encoding="utf-8")
+    kept = invoke("report", "html", run_dir, "--out", other)
+    assert kept.exit_code == 1
+    assert json.loads(kept.stderr)["code"] == "invalid_value"
+    assert (other / "index.html").read_text(encoding="utf-8") == "mine\n"
+    assert (run_dir / "recipe.json").is_file() and not (run_dir / "index.html").exists()
+
+
+def test_claim_html_report_fingerprint_follows_the_run(tmp_path, monkeypatch):
+    """The fingerprint moves with the recipe (a relabel included), with the fit of a lane the page
+    shows, with the stored fit configuration of any lane and with the gelpy version; `status` calls
+    a report current only while its marker holds the run's fingerprint, and not for a build that
+    stopped half way (an empty one)."""
+    import gelpy
+    from gelpy.schemas.fit_config import FitConfigStore, PerLaneFitConfig
+    from gelpy.runfolder.layout import RunPaths
+    from gelpy.runfolder.report_folder import report_fingerprint, report_status, write_marker
+    from gelpy.schemas.report import ReportMarker
+    from gelpy.schemas.run import RunManifest, StageRecord
+
+    recipe, lane = _demo_recipe()
+    relabelled = recipe.model_copy(
+        update={
+            "lanes": recipe.lanes.model_copy(
+                update={"lanes": [lane.model_copy(update={"label": "another"})]}
+            )
+        }
+    )
+
+    def manifest(fit_hash):
+        record = StageRecord(stage="fit", key="fit:lane=0", hash=fit_hash, cache_path="cache/fits/a.json")
+        return RunManifest(recipe_hash="r", stages={"fit:lane=0": record})
+
+    store = FitConfigStore()
+    base = report_fingerprint(recipe, manifest("f1"), [0], store)
+    assert base == report_fingerprint(recipe, manifest("f1"), [0], FitConfigStore())  # deterministic
+    assert report_fingerprint(relabelled, manifest("f1"), [0], store) != base  # a relabel
+    assert report_fingerprint(recipe, manifest("f2"), [0], store) != base  # a refit of a lane it shows
+    assert report_fingerprint(recipe, manifest("f2"), [], store) == report_fingerprint(  # one it does not
+        recipe, manifest("f1"), [], store
+    )
+    configured = FitConfigStore(lanes={7: PerLaneFitConfig()})  # the page lists every lane in the store
+    assert report_fingerprint(recipe, manifest("f1"), [0], configured) != base
+    assert report_fingerprint(recipe, manifest("f1"), [], configured) != report_fingerprint(
+        recipe, manifest("f1"), [], store
+    )  # also for a lane that has no current fit
+    with monkeypatch.context() as patch:
+        patch.setattr(gelpy, "__version__", "99.0")
+        assert report_fingerprint(recipe, manifest("f1"), [0], store) != base  # a new gelpy version
+
+    paths = RunPaths(tmp_path)
+    assert report_status(paths, base) is None  # no report in this run
+    paths.html_report.mkdir()
+    write_marker(paths.html_report, ReportMarker(gelpy_version="1", fingerprint=base, files=[]))
+    assert report_status(paths, base).current is True
+    assert report_status(paths, report_fingerprint(relabelled, manifest("f1"), [0], store)).current is False
+    write_marker(paths.html_report, ReportMarker(gelpy_version="1", fingerprint="", files=[]))
+    assert report_status(paths, "").current is False  # stopped half way, even against an empty one
 
 
 # =============================================================================================

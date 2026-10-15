@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..core.contrast import apply_gamma
+from ..core.errors import DisplayRequiredError, PickCancelledError
 from ..schemas.contrast import ContrastConfig
 
 
@@ -22,9 +23,9 @@ def _use_interactive_backend() -> None:
             return
         except Exception:
             continue
-    raise RuntimeError(
-        "No interactive matplotlib backend available (tried MacOSX/QtAgg/TkAgg) — "
-        "'lanes pick' needs a GUI/display. Use 'lanes detect' or 'lanes set --endpoints' instead."
+    raise DisplayRequiredError(
+        "No interactive matplotlib backend is available (tried MacOSX, QtAgg and TkAgg): "
+        "`lanes pick` needs a display."
     )
 
 
@@ -34,7 +35,9 @@ def pick_lane_centers(
     """Show the image at non-linear contrast and collect ``n_clicks`` x-positions.
 
     Blocks until the user clicks ``n_clicks`` points (in any order — the result is
-    sorted left to right) or closes the window early, which raises. Intentionally
+    sorted left to right). Without a display it raises ``DisplayRequiredError`` (no GUI backend can
+    be selected, or none can open a window); a window that ends before all the clicks are made
+    (closed, or Enter pressed early) raises ``PickCancelledError``. Intentionally
     simple: no snapping, no drag-to-adjust — read positions straight off the same
     high-contrast view the detection overlay already uses.
     """
@@ -43,13 +46,17 @@ def pick_lane_centers(
 
     disp = apply_gamma(image, contrast.gamma.gamma, contrast.gamma.gain) if contrast else image
 
-    fig, ax = plt.subplots(figsize=(16, 6))
+    try:
+        fig, ax = plt.subplots(figsize=(16, 6))
+    except Exception as exc:  # a backend can be selected where there is no display, and fail when a window opens
+        raise DisplayRequiredError(f"`lanes pick` could not open a window ({exc}).") from exc
     ax.imshow(disp, cmap="gray", aspect="auto")
     ax.set_title(f"{title}\nClick {n_clicks} lane center(s), then press Enter.")
     points = fig.ginput(n_clicks, timeout=0)
     plt.close(fig)
     if len(points) != n_clicks:
-        raise RuntimeError(
-            f"expected {n_clicks} click(s), got {len(points)} (window closed early?)"
+        raise PickCancelledError(
+            f"The picker ended with {len(points)} of {n_clicks} clicks: its window was closed, or "
+            "Enter was pressed, before the clicks were done. Nothing was changed."
         )
     return sorted(float(x) for x, _y in points)

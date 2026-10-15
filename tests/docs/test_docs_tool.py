@@ -229,3 +229,13 @@ def test_render_front_matter_quotes_values_that_need_it():
     # gelpy's own parser must strip the quotes it just added, so a round trip is lossless.
     mine, _ = split_front_matter(rendered + "\nbody\n")
     assert mine["title"] == "Concepts: the run folder"
+
+
+def test_digest_spells_an_argless_lambda_the_same_on_every_python(tmp_path):
+    """ast.unparse writes ``lambda :`` before 3.11 and ``lambda:`` after; the digest must not care."""
+    path = _write(
+        tmp_path,
+        "m.py",
+        "from pydantic import BaseModel, Field\n\n\nclass M(BaseModel):\n    x: list[int] = Field(default_factory=lambda: [1])\n",
+    )
+    assert "lambda:" in surface_text([path]) and "lambda :" not in surface_text([path])

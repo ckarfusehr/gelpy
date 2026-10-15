@@ -4,29 +4,22 @@ Not a generic argument-hashing memoizer (those would hash the multi-megabyte ima
 just to build a key). Callers compute a small content hash themselves and hand it
 here as the cache filename; ``get_or_compute`` only invokes the (possibly expensive)
 ``compute`` thunk on a miss or when an existing file is unreadable/corrupt.
+
+Every file goes through ``utils.atomic.atomic_write``, the one atomic writer of gelpy: a temp
+file, then a rename. ``np.save`` and ``np.savez`` are handed its open file, so they cannot
+append an extension to the temp name.
 """
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 from pydantic import BaseModel
 
-
-def _atomic_write_bytes(path: Path, write: Callable[[Path], None]) -> None:
-    """Write via a temp file in the same dir, then atomically rename into place."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.tmp.{os.getpid()}")
-    try:
-        write(tmp)
-        os.replace(tmp, path)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
+from ..utils.atomic import atomic_write
 
 
 def get_or_compute_npy(path: Path, compute: Callable[[], np.ndarray]) -> np.ndarray:
@@ -36,12 +29,7 @@ def get_or_compute_npy(path: Path, compute: Callable[[], np.ndarray]) -> np.ndar
         except (ValueError, OSError, EOFError):
             path.unlink(missing_ok=True)  # corrupt -> recompute
     value = compute()
-
-    def _write(tmp: Path) -> None:
-        with open(tmp, "wb") as fh:  # file object -> np.save won't append ".npy"
-            np.save(fh, value)
-
-    _atomic_write_bytes(path, _write)
+    atomic_write(path, lambda fh: np.save(fh, value))  # a file object: np.save adds no ".npy"
     return value
 
 
@@ -55,21 +43,14 @@ def get_or_compute_npz(
         except (ValueError, OSError, EOFError):
             path.unlink(missing_ok=True)
     value = compute()
-
-    # np.savez appends ".npz" to a plain path, mangling the atomic temp name; pass
-    # an open file object so the bytes land exactly where we tell them to.
-    def _write(tmp: Path) -> None:
-        with open(tmp, "wb") as fh:
-            np.savez(fh, **value)
-
-    _atomic_write_bytes(path, _write)
+    atomic_write(path, lambda fh: np.savez(fh, **value))  # a file object: np.savez adds no ".npz"
     return value
 
 
 def get_or_compute_json(path: Path, compute: Callable[[], Any]) -> Any:
     if path.exists():
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             path.unlink(missing_ok=True)
     value = compute()
@@ -82,8 +63,8 @@ def write_json(path: Path, value: Any) -> None:
         text = value.model_dump_json(indent=2)
     else:
         text = json.dumps(value, indent=2, sort_keys=True, default=str)
-    _atomic_write_bytes(path, lambda tmp: tmp.write_text(text))
+    atomic_write(path, text.encode("utf-8"))
 
 
 def read_json(path: Path) -> Any:
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))

@@ -153,6 +153,65 @@ def _clean(text: str | None) -> str:
     return " ".join((text or "").split())
 
 
+# Type names on the generated pages come from these two mappings, never from str() of an annotation
+# or click's ``type.name``: both change with the Python and click version (``Union`` vs
+# ``float | None``; ``text`` vs ``str``).
+_CLICK_TYPE_NAMES = {
+    "StringParamType": "text",
+    "IntParamType": "integer",
+    "FloatParamType": "float",
+    "BoolParamType": "boolean",
+    "UUIDParameterType": "uuid",
+    "UUIDParamType": "uuid",
+    "Path": "path",
+    "File": "file",
+    "DateTime": "datetime",
+    "IntRange": "integer",
+    "FloatRange": "float",
+}
+
+
+def cli_type_name(click_type: Any) -> str:
+    """A CLI parameter type as the pages show it, identical across click/typer versions."""
+    names = [c.__name__ for c in type(click_type).__mro__]
+    if "Tuple" in names:
+        return "<" + " ".join(cli_type_name(t) for t in click_type.types) + ">"
+    if "Choice" in names:
+        return "choice"
+    for name in names:
+        if name in _CLICK_TYPE_NAMES:
+            return _CLICK_TYPE_NAMES[name]
+    return type(click_type).__name__.removesuffix("ParamType").lower()
+
+
+def annotation_name(annotation: Any) -> str:
+    """A field annotation as the pages show it: ``X | None``, ``list[int]``, ``Literal['a']``."""
+    import types
+    import typing
+
+    if annotation is None or annotation is type(None):
+        return "None"
+    if annotation is Ellipsis:
+        return "..."
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is typing.Union or origin is getattr(types, "UnionType", None):
+        parts = [annotation_name(a) for a in args if a is not type(None)]
+        if len(parts) != len(args):
+            parts.append("None")
+        return " | ".join(parts)
+    if origin is typing.Annotated:
+        return annotation_name(args[0])  # constraints are in the description, not the type
+    if origin is typing.Literal:
+        return "Literal[" + ", ".join(repr(a) for a in args) + "]"
+    if origin is not None:
+        base = getattr(origin, "__name__", str(origin))
+        return f"{base}[{', '.join(annotation_name(a) for a in args)}]" if args else base
+    if isinstance(annotation, type):
+        return annotation.__name__
+    return str(annotation).replace("typing.", "").replace("gelpy.schemas.", "")
+
+
 def generate_cli() -> str:
     """The full command tree, from the typer app itself."""
     import typer.main
@@ -176,7 +235,7 @@ def generate_cli() -> str:
         return not any(opt.startswith("-") for opt in getattr(param, "opts", []))
 
     def _type_name(param: Any) -> str:
-        name = getattr(param.type, "name", str(param.type))
+        name = cli_type_name(param.type)
         if getattr(param, "multiple", False):
             name += " (repeatable)"
         return f"`{name}`"
@@ -222,6 +281,13 @@ def generate_cli() -> str:
         "",
     ]
 
+    # The options of the program itself (`gelpy --version`): the walk below sees only its commands.
+    lines.append("## Options of `gelpy` itself")
+    lines.append("")
+    lines.append("Before any command name, as in `gelpy --version`.")
+    lines.append(render_params(command))
+    lines.append("")
+
     groups = getattr(command, "commands", {})
     for name in sorted(groups):
         sub = groups[name]
@@ -253,7 +319,7 @@ def generate_contracts() -> str:
         "# Data contracts",
         "",
         "Every request, result and configuration object gelpy exchanges. All of them subclass",
-        "`CanonicalModel` (`extra=\"forbid\"`), so an unrecognised field is a hard validation error",
+        "`CanonicalModel` (`extra=\"forbid\"`), so an unrecognized field is a hard validation error",
         "rather than a silently ignored typo.",
         "",
         "`gelpy schema <Name>` prints any of these as JSON Schema at the terminal -- prefer that",
@@ -270,8 +336,7 @@ def generate_contracts() -> str:
         lines.append("")
         rows = []
         for field_name, field in obj.model_fields.items():
-            annotation = getattr(field.annotation, "__name__", str(field.annotation))
-            annotation = annotation.replace("typing.", "").replace("gelpy.schemas.", "")
+            annotation = annotation_name(field.annotation)
             if field.is_required():
                 default = "**required**"
             elif field.default_factory is not None:
@@ -343,7 +408,7 @@ def generate_registries() -> str:
 
 
 def generate_errors() -> str:
-    """The stable error-code catalogue an agent can branch on."""
+    """The stable error-code catalogue an agent can branch on, with each code's next step."""
     from gelpy.core import errors as errors_module
 
     lines = [
@@ -351,13 +416,16 @@ def generate_errors() -> str:
         "",
         "# Error codes",
         "",
-        "Every command failure is an `ErrorResponse` carrying a **stable** `code`, so a caller can",
-        "branch on the kind of failure without string-matching a message. `available` lists the",
-        "valid choices where there are any, which is usually enough to recover without reading",
-        "source.",
+        "Every failure is one `ErrorResponse` -- `{error, code, detail, available}` -- on stderr",
+        "(exit code 1; 2 for a malformed command line), from `gelpy tool call` as from every other",
+        "command, and as the text of an error result from the MCP server (`gelpy mcp`). `code` is",
+        "**stable**: branch on it, not on the message. `detail` names the next step (for",
+        "`validation_error` it is the JSON list of field errors), and `available` lists the valid",
+        "choices where there are any.",
         "",
         "```json",
-        '{"error": "Unknown fit strategy model \'emg\'.", "code": "registry",',
+        '{"error": "Unknown fit-strategy model \'emg\'.", "code": "registry",',
+        ' "detail": "Use one of the names in `available`.",',
         ' "available": ["bayesian", "grow_select", "sparse_seed"]}',
         "```",
         "",
@@ -368,18 +436,15 @@ def generate_errors() -> str:
     for name in sorted(dir(errors_module)):
         obj = getattr(errors_module, name)
         if isinstance(obj, type) and issubclass(obj, errors_module.GelpyError):
-            rows.append([f"`{obj.code}`", f"`{name}`", _clean(obj.__doc__)])
-    lines.append(_md_table(["code", "exception", "meaning"], rows))
-    lines.append("")
-    lines.append("## Codes from non-domain failures")
-    lines.append("")
+            rows.append([f"`{obj.code}`", f"`{name}`", _clean(obj.__doc__), _clean(obj.next_step)])
+    lines.append(_md_table(["code", "exception", "meaning", "next step (`detail`)"], rows))
+    lines += ["", "## Codes from non-domain failures", ""]
     lines.append(
         _md_table(
-            ["code", "raised when"],
+            ["code", "raised when", "next step (`detail`)"],
             [
-                ["`not_found`", "a `FileNotFoundError` escaped (missing run folder or image)"],
-                ["`validation_error`", "a pydantic `ValidationError`; `detail` carries the field errors as JSON"],
-                ["`internal_error`", "any other exception, mapped rather than leaking a traceback"],
+                [f"`{code}`", _clean(when), _clean(step)]
+                for code, (when, step) in errors_module.NON_DOMAIN_CODES.items()
             ],
         )
     )
@@ -392,7 +457,7 @@ def generate_run_folder() -> str:
     from gelpy.runfolder.stages import StageName
 
     paths = RunPaths("<run_dir>")
-    file_props = ["recipe", "fit_config", "manifest", "results_csv", "results_json", "report", "history"]
+    file_props = ["recipe", "fit_config", "manifest", "results_csv", "results_json", "report", "history", "lock"]
     dir_props = ["cache", "render", "render_fits", "log"]
 
     precious = {
@@ -403,6 +468,7 @@ def generate_run_folder() -> str:
         "results_json": "generated -- the same content as the full structured result.",
         "report": "generated -- a human-readable markdown summary.",
         "history": "append-only log of every command run against this folder.",
+        "lock": "the advisory lock file: every command that writes this folder holds it, so a second writer is refused with `run_locked`. Released when the holder exits; never needs deleting.",
     }
 
     lines = [
@@ -425,6 +491,7 @@ def generate_run_folder() -> str:
         "results_csv": "generated",
         "results_json": "generated",
         "report": "generated",
+        "lock": "advisory lock, held while a command writes",
     }
     for prop in [p for p in file_props if p != "history"]:
         rel = str(getattr(paths, prop).relative_to(paths.root))
@@ -438,6 +505,9 @@ def generate_run_folder() -> str:
         "  render/",
         "    *.png",
         "    fits/lane_NNN.png",
+        "    fits/index.json      # which fit and label each plot shows",
+        "  report/                # gelpy report html: index.html, report.css, theme.css, img/",
+        "    .gelpy-report.json   # marks the folder as the report's and lists the files it wrote",
         "  log/",
         "    history.jsonl        # append-only command log",
     ]
@@ -445,6 +515,20 @@ def generate_run_folder() -> str:
     rows = [
         [f"`{getattr(paths, prop).relative_to(paths.root)}`", precious[prop]]
         for prop in file_props
+    ]
+    rows += [
+        [
+            f"`{paths.fit_plot_index.relative_to(paths.root)}`",
+            "generated -- which fit (by hash), and under which lane label, each "
+            "`render/fits/lane_NNN.png` shows; `report html` draws a plot again only when this differs.",
+        ],
+        [
+            f"`{paths.html_report.relative_to(paths.root)}/`",
+            "generated -- the static HTML report (`gelpy report html`): `index.html`, `report.css`, "
+            "`theme.css` when a stylesheet was passed, `img/`, and `.gelpy-report.json`, which marks "
+            "the folder as the report's. A rebuild replaces, and `init --force` removes, only the files "
+            "that marker lists; a `report/` without it is left alone.",
+        ],
     ]
     lines.append(_md_table(["path", "role"], rows))
 
@@ -504,7 +588,7 @@ def build_index() -> dict[str, Any]:
     """
     pages = []
     for path in guide_pages() + sorted(WALKTHROUGH.glob("*.md")):
-        front, body = split_front_matter(path.read_text())
+        front, body = split_front_matter(path.read_text(encoding="utf-8"))
         if not front:
             # No front matter means this is not a documentation page -- e.g. report.md, a
             # generated artifact of the example run that lives alongside the walkthrough.
@@ -559,13 +643,13 @@ def build(write: bool = True) -> dict[Path, str]:
     if write:
         REFERENCE.mkdir(parents=True, exist_ok=True)
         for path, content in produced.items():
-            path.write_text(content)
+            path.write_text(content, encoding="utf-8")
     return produced
 
 
 def stamp(page: Path) -> tuple[bool, str]:
     """Recompute and write ``page``'s subject digest. Returns (changed, digest)."""
-    text = page.read_text()
+    text = page.read_text(encoding="utf-8")
     front, body = split_front_matter(text)
     subjects = page_subjects(front)
     if not subjects:
@@ -574,7 +658,7 @@ def stamp(page: Path) -> tuple[bool, str]:
     changed = front.get("subject_digest") != digest
     if changed:
         front["subject_digest"] = digest
-        page.write_text(render_front_matter(front) + body)
+        page.write_text(render_front_matter(front) + body, encoding="utf-8")
     return changed, digest
 
 
@@ -586,11 +670,11 @@ def check() -> list[str]:
         rel = path.relative_to(REPO)
         if not path.exists():
             problems.append(f"{rel}: missing (run `python tools/docs.py build`)")
-        elif path.read_text() != expected:
+        elif path.read_text(encoding="utf-8") != expected:
             problems.append(f"{rel}: out of date (run `python tools/docs.py build`)")
 
     for page in guide_pages():
-        front, _ = split_front_matter(page.read_text())
+        front, _ = split_front_matter(page.read_text(encoding="utf-8"))
         rel = page.relative_to(REPO)
         if not front:
             problems.append(f"{rel}: no front matter (needs title/audience/summary/subject)")

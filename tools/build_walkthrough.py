@@ -135,7 +135,7 @@ def run_steps(workspace: Path, python: str) -> dict[str, Step]:
     """Execute the documented sequence, capturing real output and timings."""
     run_dir = workspace / "run"
     labels_file = workspace / "labels.txt"
-    labels_file.write_text("\n".join(LABELS) + "\n")
+    labels_file.write_text("\n".join(LABELS) + "\n", encoding="utf-8")
 
     steps = [
         Step("init", ["init", "$RUN", "$IMAGE", "--n-lanes", "20", "--width", "180"],
@@ -164,6 +164,7 @@ def run_steps(workspace: Path, python: str) -> dict[str, Step]:
             cwd=REPO,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=3600,
         )
         step.seconds = time.monotonic() - started
@@ -242,6 +243,7 @@ def write_script(steps: dict[str, Step]) -> None:
         "# script is a complete, replayable record of the analysis.",
         "#",
         "# Usage:  bash examples/walkthrough.sh [RUN_DIR]",
+        "# RUN_DIR is replaced when it already holds a run (see the init step): pass one you can lose.",
         "set -euo pipefail",
         "",
         'RUN="${1:-runs/folding_screen}"',
@@ -253,10 +255,19 @@ def write_script(steps: dict[str, Step]) -> None:
     ]
     for step in steps.values():
         lines.append(f"# {step.id}")
-        lines.append(_render_command(step.argv))
+        if step.id == "init":
+            # The page shows init on a new folder. The script must also run a second time, and
+            # init refuses a folder that already holds a run (run_exists) unless it is forced.
+            lines += [
+                "# --force: init refuses a folder that already holds a run (run_exists); with it a",
+                "# second run of this script replaces the run (the cache and the history are kept).",
+            ]
+            lines.append(_render_command([*step.argv, "--force"]))
+        else:
+            lines.append(_render_command(step.argv))
         lines.append("")
     lines.append('echo "Done. Results in $RUN -- see results.csv, report.md and render/."')
-    target.write_text("\n".join(lines) + "\n")
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     target.chmod(0o755)
     print(f"  wrote {target.relative_to(REPO)}")
 
@@ -278,7 +289,7 @@ def publish_artifacts(run_dir: Path) -> None:
 
 def compute_tables(run_dir: Path) -> dict[str, str]:
     """Tables computed from the run folder -- never hand-typed."""
-    results = json.loads((run_dir / "results.json").read_text())
+    results = json.loads((run_dir / "results.json").read_text(encoding="utf-8"))
     lanes = results["lanes"]
     low, high = PRODUCT_WINDOW
 
@@ -330,8 +341,8 @@ def compute_tables(run_dir: Path) -> dict[str, str]:
 
 def compute_stats(run_dir: Path, steps: dict[str, Step]) -> dict[str, str]:
     """Single measured values the prose quotes inline."""
-    results = json.loads((run_dir / "results.json").read_text())
-    status = json.loads((run_dir / "manifest.json").read_text()) if False else {}
+    results = json.loads((run_dir / "results.json").read_text(encoding="utf-8"))
+    status = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8")) if False else {}
     lanes = results["lanes"]
     coverages = [lane["coverage"] for lane in lanes if lane.get("coverage")]
     low, high = PRODUCT_WINDOW
@@ -357,14 +368,14 @@ def compute_stats(run_dir: Path, steps: dict[str, Step]) -> dict[str, str]:
 
 
 def _detect_pitch(run_dir: Path) -> float:
-    recipe = json.loads((run_dir / "recipe.json").read_text())
+    recipe = json.loads((run_dir / "recipe.json").read_text(encoding="utf-8"))
     centers = [lane["x_center_px"] for lane in recipe["lanes"]["lanes"]]
     return (centers[-1] - centers[0]) / (len(centers) - 1)
 
 
 def render_page(steps: dict[str, Step], images: dict[str, str], tables: dict[str, str],
                 stats: dict[str, str]) -> str:
-    template = TEMPLATE.read_text()
+    template = TEMPLATE.read_text(encoding="utf-8")
 
     quoted = " ".join(f"'{label}'" for label in LABELS)
     template = template.replace("<!-- gelpy:labels -->", quoted)
@@ -447,14 +458,14 @@ def main() -> int:
 
             return re.sub(r"\b\d+(\.\d+)?\s*(s|seconds)\b", "<time>", text)
 
-        if strip_timings(OUT_PAGE.read_text()) != strip_timings(page):
+        if strip_timings(OUT_PAGE.read_text(encoding="utf-8")) != strip_timings(page):
             print("docs/walkthrough/README.md is stale; run: python tools/build_walkthrough.py")
             return 1
         print("docs/walkthrough/README.md is current")
         return 0
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUT_PAGE.write_text(page)
+    OUT_PAGE.write_text(page, encoding="utf-8")
     print(f"wrote {OUT_PAGE.relative_to(REPO)} ({len(page.splitlines())} lines)")
     return 0
 

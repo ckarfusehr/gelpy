@@ -3,7 +3,7 @@
 # Data contracts
 
 Every request, result and configuration object gelpy exchanges. All of them subclass
-`CanonicalModel` (`extra="forbid"`), so an unrecognised field is a hard validation error
+`CanonicalModel` (`extra="forbid"`), so an unrecognized field is a hard validation error
 rather than a silently ignored typo.
 
 `gelpy schema <Name>` prints any of these as JSON Schema at the terminal -- prefer that
@@ -15,7 +15,9 @@ All per-lane fit results for a run.
 
 | field | type | default | description |
 |---|---|---|---|
-| `lanes` | `list` | _factory_ |  |
+| `lanes` | `list[LaneFitResult]` | _factory_ |  |
+| `gelpy_version` | `str` | `''` | gelpy version that assembled these results. |
+| `warnings` | `list[str]` | _factory_ | Lanes left out of `lanes` that are not merely stale: a current fit whose file is damaged. Each names the lane and the command that fits it again. |
 
 ## `BackgroundStageConfig`
 
@@ -24,7 +26,7 @@ Selects and configures a background model. ``model`` is validated against the ba
 | field | type | default | description |
 |---|---|---|---|
 | `model` | `str` | `'robust_plane'` | Registered background-model name. |
-| `params` | `dict` | _factory_ | Model-specific parameters (schema per model). |
+| `params` | `dict[str, Any]` | _factory_ | Model-specific parameters (schema per model). |
 
 ## `BandFit`
 
@@ -33,15 +35,15 @@ One fitted component within a lane. Area is on the *true* signal basis.
 | field | type | default | description |
 |---|---|---|---|
 | `band_number` | `int` | **required** |  |
-| `component_class` | `Literal` | `'sample'` | Semantic label; never excludes the band from the total. |
+| `component_class` | `Literal['sample', 'well', 'smear', 'dust', 'unknown']` | `'sample'` | Semantic label; never excludes the band from the total. |
 | `area` | `float` | **required** | Absolute integrated area (baseline-subtracted units). |
 | `area_fraction` | `float` | **required** | area / total baseline-subtracted signal area A_sig. |
-| `area_uncertainty` | `Union` | `None` | 1-sigma on area from the fit covariance (None if unavailable). |
+| `area_uncertainty` | `float \| None` | `None` | 1-sigma on area from the fit covariance (None if unavailable). |
 | `maximum_position` | `float` | **required** | x-position (px) of the component maximum, in the coordinates of the profile that was fitted -- i.e. RELATIVE TO slice_start, not to the source image. With --slice 50 600 a band at image row 89 is reported at 39. The per-lane fit figure uses the same axis, so the two agree, but positions are only comparable across runs that used the same slice window: add slice_start to compare against an unsliced run. |
-| `centroid` | `Union` | `None` | Area-weighted centroid x (px). |
-| `params` | `Union` | `None` | Fitted shape params; None for a region-integrated smear. |
-| `region` | `Union` | `None` | (lo, hi) px support for a region-integrated component. |
-| `shape_r2` | `Union` | `None` | Local R^2 of this component's fit. |
+| `centroid` | `float \| None` | `None` | Area-weighted centroid x (px). |
+| `params` | `GaussianPeakParams \| EmgPeakParams \| BiGaussianPeakParams \| PseudoVoigtPeakParams \| None` | `None` | Fitted shape params; None for a region-integrated smear. |
+| `region` | `tuple[int, int] \| None` | `None` | (lo, hi) px support for a region-integrated component. |
+| `shape_r2` | `float \| None` | `None` | Local R^2 of this component's fit. |
 | `at_bound` | `bool` | `False` | A parameter hit its bound (suspect fit). |
 | `low_identifiability` | `bool` | `False` | Overlaps a neighbor too much to be separately determined. |
 
@@ -51,7 +53,7 @@ How to estimate the 1-D baseline before/with peak fitting. Default is a low-orde
 
 | field | type | default | description |
 |---|---|---|---|
-| `method` | `Literal` | `'poly'` | Baseline estimator. |
+| `method` | `Literal['arpls', 'asls', 'poly', 'none']` | `'poly'` | Baseline estimator. |
 | `lam` | `float` | `100000.0` | Whittaker smoothness (arpls/asls). Larger = stiffer, flatter baseline that cannot bend to follow a smear. |
 | `p` | `float` | `0.01` | Asymmetry weight for points above the baseline (asls only). |
 | `poly_order` | `int` | `2` | Polynomial order for method='poly' (the default). 2 tracks constant/linear/mild-quadratic drift while absorbing ~5.5% of a broad smear; order 3 absorbs ~13%, order 0 (constant) ~2%. Use 0 when the window starts past a hard exclusion boundary (e.g. a well-cavity dip), where no anchoring feature is left to hold a higher-order baseline down. |
@@ -64,10 +66,10 @@ Recorded baseline outcome (for reporting; values are recomputed deterministicall
 
 | field | type | default | description |
 |---|---|---|---|
-| `method` | `Literal` | **required** |  |
-| `lam` | `Union` | `None` |  |
-| `poly_coeffs` | `Union` | `None` |  |
-| `mean_level` | `Union` | `None` | Mean baseline level over the window (diagnostic). |
+| `method` | `Literal['arpls', 'asls', 'poly', 'none']` | **required** |  |
+| `lam` | `float \| None` | `None` |  |
+| `poly_coeffs` | `list[float] \| None` | `None` |  |
+| `mean_level` | `float \| None` | `None` | Mean baseline level over the window (diagnostic). |
 
 ## `BiGaussianPeakParams`
 
@@ -75,7 +77,7 @@ Split (bi-)Gaussian with independent left/right widths — cheap asymmetry. area
 
 | field | type | default | description |
 |---|---|---|---|
-| `kind` | `Literal` | `'bi_gaussian'` |  |
+| `kind` | `Literal['bi_gaussian']` | `'bi_gaussian'` |  |
 | `amplitude` | `float` | **required** | Peak height. |
 | `center` | `float` | **required** | Center position (px); also the maximum. |
 | `sigma_left` | `float` | **required** | Std dev on the low-x side (px). |
@@ -94,27 +96,28 @@ How the gel image is displayed. Purely cosmetic: analysis runs on the raw (optio
 | field | type | default | description |
 |---|---|---|---|
 | `gamma` | `GammaCorrection` | _factory_ |  |
-| `intensity_range` | `Union` | _factory_ |  |
+| `intensity_range` | `IntensityRange \| None` | _factory_ |  |
 
 ## `DetectLanesRequest`
 
-Detect lane centers from the image by fitting an even N-lane grid to the y-projection. ``n_lanes`` is ground truth (from the plate sheet / user) and is never inferred; detection only anchors that many evenly-spaced centers to the actual bright lane columns, so the layout is correct regardless of how the gel was cropped. Always inspect the verification overlay before relying on the result; if ``confidence`` is ``"low"``, adjust the knobs below or fall back to ``set_lanes`` with explicit ``endpoints``.
+Detect lane centers from the image by fitting an even N-lane grid to the y-projection. ``n_lanes`` is ground truth (from the plate sheet / user) and is never inferred; detection only anchors that many evenly-spaced centers to the actual bright lane columns, so the layout is correct regardless of how the gel was cropped. Always inspect the verification overlay before relying on the result; if ``confidence`` is ``"low"``, adjust the knobs below or fall back to ``lanes set`` (tool ``lanes_set``) with explicit ``endpoints``.
 
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `n_lanes` | `Union` | `None` | True lane count (defaults to the current recipe count). |
-| `y_start` | `Union` | `None` | Top row of the projection band (default: image top). |
-| `y_end` | `Union` | `None` | Bottom row of the projection band (default: image bottom). Restricting to the well region near the top often separates faint lanes more cleanly. |
-| `smoothing_window` | `Union` | `None` | Moving-window average width (px) applied to the projection before peak detection (default: 0.7 x the expected pitch, width/n_lanes). Wells are plateaus, often brighter on one edge than the other — averaging over a considerable width prevents that from biasing the detected center. |
-| `min_prominence` | `Union` | `None` | Peak prominence floor (fraction of the normalized projection range; default 0.05). Raise it to drop spurious peaks from dust/artifacts. |
-| `min_distance` | `Union` | `None` | Minimum px between detected peaks (default: smoothing-scaled). |
-| `min_width` | `Union` | `None` | Minimum peak width in px (default: 1.0, i.e. off). On real gels a genuine (faint) band can be as narrow as a dust/artifact spike, so there's no universally safe scaled default — compare peak widths in the overlay first, then raise this above the spurious ones but below the genuine ones. |
+| `n_lanes` | `int \| None` | `None` | True lane count, at most 1000 (defaults to the current recipe count). |
+| `y_start` | `int \| None` | `None` | Top row of the projection band (default: image top). |
+| `y_end` | `int \| None` | `None` | Bottom row of the projection band (default: image bottom). Restricting to the well region near the top often separates faint lanes more cleanly. |
+| `smoothing_window` | `float \| None` | `None` | Moving-window average width (px) applied to the projection before peak detection (default: 0.7 x the expected pitch, width/n_lanes). Wells are plateaus, often brighter on one edge than the other — averaging over a considerable width prevents that from biasing the detected center. |
+| `min_prominence` | `float \| None` | `None` | Peak prominence floor (fraction of the normalized projection range; default 0.05). Raise it to drop spurious peaks from dust/artifacts. |
+| `min_distance` | `float \| None` | `None` | Minimum px between detected peaks (default: smoothing-scaled). |
+| `min_width` | `float \| None` | `None` | Minimum peak width in px (default: 1.0, i.e. off). On real gels a genuine (faint) band can be as narrow as a dust/artifact spike, so there's no universally safe scaled default — compare peak widths in the overlay first, then raise this above the spurious ones but below the genuine ones. |
 | `use_corrected` | `bool` | `False` | Detect on the background-corrected image instead of the raw one. Default is raw: fluorescence gels already have a dark background with bright lanes, and plane-subtraction (which clips negatives) tends to add projection noise. Enable this for gels with strong uneven illumination where the raw background swamps the lanes. |
 | `projection_strategy` | `str` | `'d4_union'` | How the 2-D image is collapsed to the 1-D projection the grid is fit to. 'd4_union' (default) clusters informative y-rows and unions the bands that add lane coverage, falling back to 'full' (the full-height column mean) whenever it doesn't beat that baseline, so it is never worse than 'full'. |
-| `apply` | `bool` | `False` | Persist the detected centers to the recipe (like `set_lanes`). |
-| `labels` | `Union` | `None` | Lane labels to apply (only when `apply`); defaults to existing. |
-| `label_rotation` | `Union` | `None` | Label rotation (deg) in plots. |
+| `apply` | `bool` | `False` | Persist the detected centers to the recipe (like `lanes_set`). |
+| `labels` | `list[str] \| None` | `None` | Lane labels to apply, at most 1000 (only when `apply`); defaults to existing. |
+| `label_rotation` | `float \| None` | `None` | Label rotation (deg) in plots. |
+| `plot` | `bool` | `True` | Also render the verification overlay (render/lane_detect.png). |
 
 ## `EmgPeakParams`
 
@@ -122,7 +125,7 @@ Exponentially-modified Gaussian (Gaussian convolved with a one-sided exponential
 
 | field | type | default | description |
 |---|---|---|---|
-| `kind` | `Literal` | `'emg'` |  |
+| `kind` | `Literal['emg']` | `'emg'` |  |
 | `amplitude` | `float` | **required** | Gaussian-component height scale. |
 | `center` | `float` | **required** | Gaussian-component mean (px); NOT the maximum. |
 | `sigma` | `float` | **required** | Gaussian-component standard deviation (px). |
@@ -130,14 +133,14 @@ Exponentially-modified Gaussian (Gaussian convolved with a one-sided exponential
 
 ## `ErrorResponse`
 
-Structured error returned by commands instead of a bare print/raise. ``code`` is a stable machine-readable discriminator (e.g. ``lane_selection``, ``registry``, ``source_image_changed``) so an agent can branch on the failure kind without string-matching the message. ``available`` carries the valid choices when the error is a bad selector or an unknown registry name, so an agent can recover without reading source.
+Structured error returned by commands instead of a bare print/raise. ``code`` is a stable machine-readable discriminator (e.g. ``lane_selection``, ``registry``, ``source_image_changed``) so an agent can branch on the failure kind without string-matching the message. ``available`` carries the valid choices when the error is a bad selector, an unknown registry name or a value outside a fixed set, so an agent can recover without reading source.
 
 | field | type | default | description |
 |---|---|---|---|
-| `error` | `str` | **required** |  |
-| `code` | `Union` | `None` |  |
-| `detail` | `Union` | `None` |  |
-| `available` | `Union` | `None` |  |
+| `error` | `str` | **required** | What failed, for people and logs. Do not parse it. |
+| `code` | `str \| None` | `None` | Stable machine-readable kind of failure; branch on this. Catalogue: docs/reference/errors.md. |
+| `detail` | `str \| None` | `None` | The next step: what to run or change. For code 'validation_error' it is the JSON list of field errors instead. |
+| `available` | `list[str] \| None` | `None` | The valid choices, when the failure is an unknown name or option, or a validation_error on a field that takes one of a fixed set of values. |
 
 ## `ExtractProfilesRequest`
 
@@ -146,7 +149,10 @@ Extract (and cache) the raw line profiles for a lane selection.
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `lanes` | `Union` | `'all'` | Lane selection: the literal 'all', a single selector term, or a list of terms. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
+| `lanes` | `Literal['all'] \| int \| str \| list[int \| str]` | `'all'` | Lane selection: the literal 'all', a single selector term, or a list of terms. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
+| `plot` | `bool` | `False` | Also render the selected profiles overlaid. |
+| `profile` | `LineProfileConfig` | _factory_ | Slice and normalization of the plot only; the cached profiles are always the full, unnormalized ones. |
+| `allow_raw` | `bool` | `False` | Measure the raw image although no background removal is configured. Off by default: profiles and fits of a raw image carry each lane's background floor into its normalization, so lanes are not comparable (background_required). |
 
 ## `FitConfig`
 
@@ -156,11 +162,11 @@ Peak-fit strategy selection + its shared knobs. Defaults are tuned to work with 
 |---|---|---|---|
 | `method` | `str` | `'grow_select'` | Fit strategy name (see `models list`). |
 | `baseline` | `BaselineConfig` | _factory_ |  |
-| `shapes` | `list` | _factory_ | Allowed peak shapes for per-component selection. |
+| `shapes` | `list[str]` | _factory_ | Allowed peak shapes for per-component selection. |
 | `priors` | `PriorConfig` | _factory_ |  |
 | `robust_loss` | `str` | `'soft_l1'` | Robust loss for least_squares: 'linear' \| 'soft_l1' \| 'huber' \| 'cauchy'. |
 | `seed` | `int` | `0` | RNG seed; makes stochastic strategies (bayesian) reproducible and cacheable. |
-| `params` | `dict` | _factory_ | Extra strategy-specific parameters. |
+| `params` | `dict[str, Any]` | _factory_ | Extra strategy-specific parameters. |
 
 ## `FitConfigOverrides`
 
@@ -168,12 +174,12 @@ All-optional overrides merged onto a lane's last-used ``FitConfig``.
 
 | field | type | default | description |
 |---|---|---|---|
-| `method` | `Union` | `None` | Fit strategy name. |
-| `baseline` | `Union` | `None` | Replace the baseline config. |
-| `shapes` | `Union` | `None` | Replace the allowed shape menu. |
-| `priors` | `Union` | `None` | Replace the priors/stopping config. |
-| `robust_loss` | `Union` | `None` | Robust loss for least_squares. |
-| `seed` | `Union` | `None` | RNG seed. |
+| `method` | `str \| None` | `None` | Fit strategy name. |
+| `baseline` | `BaselineConfig \| None` | `None` | Replace the baseline config. |
+| `shapes` | `list[str] \| None` | `None` | Replace the allowed shape menu. |
+| `priors` | `PriorConfig \| None` | `None` | Replace the priors/stopping config. |
+| `robust_loss` | `str \| None` | `None` | Robust loss for least_squares. |
+| `seed` | `int \| None` | `None` | RNG seed. |
 
 ## `FitConfigStore`
 
@@ -181,7 +187,7 @@ Durable per-lane fit configuration, persisted as ``fit_config.json`` (sparse).
 
 | field | type | default | description |
 |---|---|---|---|
-| `lanes` | `dict` | _factory_ | Per-lane fit intent, keyed by lane index. |
+| `lanes` | `dict[int, PerLaneFitConfig]` | _factory_ | Per-lane fit intent, keyed by lane index (at most 1000 lanes). |
 
 ## `FitQuality`
 
@@ -189,13 +195,13 @@ Scalar goodness-of-fit signals for one lane (drives escalation + the refit loop)
 
 | field | type | default | description |
 |---|---|---|---|
-| `reduced_chi2` | `Union` | `None` |  |
-| `r2` | `Union` | `None` |  |
-| `residual_autocorr` | `Union` | `None` | Durbin-Watson (~2 = white residual; <<2 = structured). |
-| `noise_sigma` | `Union` | `None` |  |
+| `reduced_chi2` | `float \| None` | `None` |  |
+| `r2` | `float \| None` | `None` |  |
+| `residual_autocorr` | `float \| None` | `None` | Durbin-Watson (~2 = white residual; <<2 = structured). |
+| `noise_sigma` | `float \| None` | `None` |  |
 | `n_components` | `int` | `0` |  |
-| `aicc` | `Union` | `None` |  |
-| `bic` | `Union` | `None` |  |
+| `aicc` | `float \| None` | `None` |  |
+| `bic` | `float \| None` | `None` |  |
 
 ## `FitRunRequest`
 
@@ -204,11 +210,12 @@ Run a full fit pass over a lane selection.
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `lanes` | `Union` | `'all'` | Lane selection: the literal 'all', a single selector term, or a list of terms. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
+| `lanes` | `Literal['all'] \| int \| str \| list[int \| str]` | `'all'` | Lane selection: the literal 'all', a single selector term, or a list of terms. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
 | `profile` | `LineProfileConfig` | _factory_ | Slice + normalization applied before fitting. |
 | `fit` | `FitConfig` | _factory_ | Fit strategy, baseline, allowed shapes, and priors. |
 | `auto_escalate` | `bool` | `False` | Climb the strategy ladder (grow_select -> sparse_seed -> bayesian) on any lane whose fit confidence is 'low', up to the max tier. |
 | `plot` | `bool` | `False` | Also render per-lane fit overlay PNGs. |
+| `allow_raw` | `bool` | `False` | Measure the raw image although no background removal is configured. Off by default: profiles and fits of a raw image carry each lane's background floor into its normalization, so lanes are not comparable (background_required). |
 
 ## `GammaCorrection`
 
@@ -225,7 +232,7 @@ Symmetric Gaussian. area = amplitude * sigma * sqrt(2*pi).
 
 | field | type | default | description |
 |---|---|---|---|
-| `kind` | `Literal` | `'gaussian'` |  |
+| `kind` | `Literal['gaussian']` | `'gaussian'` |  |
 | `amplitude` | `float` | **required** | Peak height. |
 | `center` | `float` | **required** | Center position (px); also the maximum. |
 | `sigma` | `float` | **required** | Standard deviation (px). |
@@ -238,6 +245,25 @@ Assemble results from cache without recomputing anything.
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
 
+## `HtmlReportRequest`
+
+Write the static HTML report of a run folder.
+
+| field | type | default | description |
+|---|---|---|---|
+| `run_dir` | `str` | **required** | Existing run folder. |
+| `css` | `str \| None` | `None` | Path of a UTF-8 stylesheet file (a regular file of at most 1 MiB), copied unparsed and byte for byte as theme.css and linked after the default stylesheet, so it can override any --gelpy-* variable or rule. Its references are yours: a relative url() resolves against the report folder. |
+| `out_dir` | `str \| None` | `None` | Folder to write the report into (default: <run_dir>/report). It must be new, empty, or hold the output of an earlier report html (it carries .gelpy-report.json): any other non-empty folder is refused with invalid_value. The run folder, the folders inside it other than report/, the folders around it and any folder that holds a recipe.json or a manifest.json are refused whatever they carry, and report/ may not be a link, as the default or as out_dir. A rebuild replaces only the files that earlier build wrote, and never writes over an existing file its marker does not list, so the tool is not destructive. One report per folder: the run lock does not cover this folder. |
+
+## `HtmlReportResult`
+
+Where `report html` (tool `report_html`) wrote the report.
+
+| field | type | default | description |
+|---|---|---|---|
+| `index` | `str` | **required** | Path of index.html: relative to the run folder when the report is inside it, absolute otherwise. |
+| `files` | `list[str]` | **required** | The files of the report, relative to the report folder: the page, the stylesheets and the images. .gelpy-report.json, which marks the folder as the report's, is not listed. |
+
 ## `ImageMeta`
 
 How the source image is interpreted to produce the canonical analysis array. Interpretation intent (channel + polarity + page) — editable and precious, a sibling to ``ImageRef`` (file identity). Detected once at init; frozen here to make the cached pipeline deterministic. These fields feed ``image_hash`` (``runfolder/stages.py``), so a change here recomputes exactly what depends on the pixels.
@@ -245,17 +271,18 @@ How the source image is interpreted to produce the canonical analysis array. Int
 | field | type | default | description |
 |---|---|---|---|
 | `original_dtype` | `str` | `''` | numpy dtype of the decoded source. |
-| `original_shape` | `tuple` | `()` | Decoded source shape. |
+| `original_shape` | `tuple[int, ...]` | `()` | Decoded source shape. |
 | `source_channels` | `int` | `1` | Source channel count (1=grayscale). |
 | `source_pages` | `int` | `1` | Pages in the source (TIFF stacks). |
 | `page` | `int` | `0` | Page index used from a multi-page source. |
 | `channel_strategy` | `str` | `'mean'` | How channels collapse to grayscale: gray\|gray_rgb\|mean\|luminance\|r\|g\|b\|dominant\|max. |
-| `channel_index` | `Union` | `None` | Chosen channel index for r/g/b/dominant strategies; else null. |
-| `polarity` | `Literal` | `'bright_on_dark'` | Signal polarity of the source image. |
+| `channel_index` | `int \| None` | `None` | Chosen channel index for r/g/b/dominant strategies; else null. |
+| `polarity` | `Literal['bright_on_dark', 'dark_on_light']` | `'bright_on_dark'` | Signal polarity of the source image. |
 | `inverted` | `bool` | `False` | Whether 1-x was applied to make signal bright (canonical). |
-| `polarity_source` | `Literal` | `'auto'` | Whether polarity was auto-detected or set explicitly. |
-| `polarity_confidence` | `Literal` | `'ok'` | Detector confidence; 'low' raises an ignorable warning. |
+| `polarity_source` | `Literal['auto', 'manual']` | `'auto'` | Whether polarity was auto-detected or set explicitly. |
+| `polarity_confidence` | `Literal['ok', 'low']` | `'ok'` | Detector confidence; 'low' raises an ignorable warning. |
 | `polarity_reason` | `str` | `''` | Human reason when confidence is 'low'. |
+| `reader_warnings` | `list[str]` | _factory_ | What tifffile logged (warnings and errors) while it read the source image. A stack cut off in the middle is read with its missing pages as zeros and reported only there. At most five different messages, each without the file's folders, and a line that counts the rest; a record, not a cache key. |
 
 ## `ImageRef`
 
@@ -263,7 +290,7 @@ Content-addressed pointer to a source image. The image is referenced by path + `
 
 | field | type | default | description |
 |---|---|---|---|
-| `path` | `str` | **required** | Path to the source image as referenced by the run. |
+| `path` | `str` | **required** | Path to the source image: relative to the run folder where possible (`RunPaths.store_path`), absolute otherwise. |
 | `sha256` | `str` | **required** | SHA-256 of the raw file bytes. |
 | `size` | `int` | **required** | File size in bytes. |
 | `mtime` | `float` | **required** | File modification time (epoch seconds). |
@@ -271,21 +298,30 @@ Content-addressed pointer to a source image. The image is referenced by path + `
 | `width` | `int` | **required** | Decoded grayscale image width in pixels. |
 | `dtype` | `str` | **required** | numpy dtype of the decoded grayscale array. |
 
+## `ImageRenderResult`
+
+Where `image show` (tool `image_render`) wrote its PNG.
+
+| field | type | default | description |
+|---|---|---|---|
+| `image` | `str` | **required** | Run-relative path of the rendered PNG. |
+
 ## `InitRunRequest`
 
-Create a run folder with a default lane layout (refine later with set-lanes).
+Create a run folder with a default lane layout. Refine the layout later with `lanes set` (tool `lanes_set`).
 
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Run folder to create (holds recipe.json, cache, results). |
 | `image_path` | `str` | **required** | Path to the source gel image; referenced by path+hash. |
-| `n_lanes` | `int` | `10` | Number of lanes for the default layout. |
-| `width` | `Union` | `None` | Profile strip width (px); guessed from n_lanes if omitted. |
-| `labels` | `Union` | `None` | Lane labels (length must equal n_lanes); defaults to '1'..'N'. |
+| `n_lanes` | `int` | `10` | Number of lanes for the default layout (1 to 1000). |
+| `width` | `int \| None` | `None` | Profile strip width (px); guessed from n_lanes if omitted. |
+| `labels` | `list[str] \| None` | `None` | Lane labels (length must equal n_lanes, at most 1000); defaults to '1'..'N'. |
 | `label_rotation` | `float` | `90.0` | Label rotation (deg) in plots. |
 | `channel` | `str` | `'auto'` | Channel->grayscale strategy: auto\|mean\|luminance\|r\|g\|b\|dominant\|max. |
-| `invert` | `Union` | `None` | Force polarity: True=dark-on-light, False=bright-on-dark, None=auto-detect. |
+| `invert` | `bool \| None` | `None` | Force polarity: True=dark-on-light, False=bright-on-dark, None=auto-detect. |
 | `page` | `int` | `0` | Page index for a multi-page source. |
+| `force` | `bool` | `False` | Replace the run if the folder already holds one: its recipe and fit configuration are replaced, its results, report and renders removed; the cache and the history log are kept. Without it an existing run is refused (run_exists). |
 
 ## `IntensityRange`
 
@@ -295,7 +331,7 @@ Linear rescale bounds. ``mode="percentile"`` interprets ``low``/``high`` as frac
 |---|---|---|---|
 | `low` | `float` | **required** |  |
 | `high` | `float` | **required** |  |
-| `mode` | `Literal` | `'percentile'` |  |
+| `mode` | `Literal['percentile', 'absolute']` | `'percentile'` |  |
 
 ## `LaneDefinition`
 
@@ -309,20 +345,21 @@ One lane: its position on the gel and its human label.
 
 ## `LaneDetectionResult`
 
-Outcome of ``lanes detect``: the fitted N-lane grid plus a confidence signal. The large projection array is intentionally omitted — the diagnostic overlay renderer recomputes it on demand rather than routing it through this result.
+Outcome of ``lanes detect``: the fitted N-lane grid plus a confidence signal. The large projection array is intentionally omitted: ``commands.run_lane_detection`` hands it to the overlay renderer next to this result rather than routing it through the result.
 
 | field | type | default | description |
 |---|---|---|---|
-| `centers` | `list` | **required** | Detected lane-center x-positions (px), left to right. |
+| `centers` | `list[float]` | **required** | Detected lane-center x-positions (px), left to right. |
 | `pitch` | `float` | **required** | Fitted center-to-center lane spacing (px). |
 | `profile_width` | `int` | **required** | Suggested profile strip width (px), from the pitch. |
 | `n_detected` | `int` | **required** | Number of lane peaks actually found in the projection. |
 | `n_expected` | `int` | **required** | Requested lane count (ground truth). |
-| `confidence` | `Literal` | **required** | 'low' means inspect the overlay and consider manual endpoints (e.g. detected peaks far off N, or the detected span doesn't cover N-1 lane intervals). |
+| `confidence` | `Literal['ok', 'low']` | **required** | 'low' means inspect the overlay and consider manual endpoints (e.g. detected peaks far off N, or the detected span doesn't cover N-1 lane intervals). |
 | `confidence_reason` | `str` | `''` | Short human-readable reason when confidence == 'low' (empty otherwise). |
 | `projection_source` | `str` | `'full'` | Which row-aggregation strategy produced the projection the grid was fit to ('full' = full-height mean; an adaptive strategy name if one beat the baseline). |
-| `y_band` | `Union` | `None` | The informative y-window(s) an adaptive strategy chose, each a [y_start, y_end] pair (None for the full-height baseline). Multiple pairs for multi-band designs. |
+| `y_band` | `list[list[int]] \| None` | `None` | The informative y-window(s) an adaptive strategy chose, each a [y_start, y_end] pair (None for the full-height baseline). Multiple pairs for multi-band designs. |
 | `applied` | `bool` | `False` | Whether the centers were persisted to the recipe. |
+| `overlay` | `str \| None` | `None` | Run-relative path of the verification overlay PNG, if rendered. |
 
 ## `LaneFitResult`
 
@@ -332,17 +369,17 @@ Outcome of fitting one lane. A failed/empty lane is preserved, never dropped.
 |---|---|---|---|
 | `lane_index` | `int` | **required** |  |
 | `label` | `str` | **required** |  |
-| `status` | `Literal` | `'ok'` |  |
-| `error` | `Union` | `None` |  |
+| `status` | `Literal['ok', 'empty', 'failed']` | `'ok'` |  |
+| `error` | `str \| None` | `None` |  |
 | `method` | `str` | `'grow_select'` |  |
-| `bands` | `list` | _factory_ |  |
-| `baseline` | `Union` | `None` |  |
-| `signal_area` | `Union` | `None` | A_sig = integral of (y - baseline). |
-| `coverage` | `Union` | `None` | sum(area_k) / A_sig. |
-| `residual_fraction` | `Union` | `None` | 1 - coverage. |
-| `quality` | `Union` | `None` |  |
-| `confidence` | `Literal` | `'ok'` |  |
-| `confidence_reasons` | `list` | _factory_ |  |
+| `bands` | `list[BandFit]` | _factory_ |  |
+| `baseline` | `BaselineFit \| None` | `None` |  |
+| `signal_area` | `float \| None` | `None` | A_sig = integral of (y - baseline). |
+| `coverage` | `float \| None` | `None` | sum(area_k) / A_sig. |
+| `residual_fraction` | `float \| None` | `None` | 1 - coverage. |
+| `quality` | `FitQuality \| None` | `None` |  |
+| `confidence` | `Literal['ok', 'low']` | `'ok'` |  |
+| `confidence_reasons` | `list[str]` | _factory_ |  |
 
 ## `LaneLayout`
 
@@ -350,7 +387,7 @@ The full set of lanes plus the shared profile-extraction width.
 
 | field | type | default | description |
 |---|---|---|---|
-| `lanes` | `list` | _factory_ | Lanes in left-to-right order. |
+| `lanes` | `list[LaneDefinition]` | _factory_ | Lanes in left-to-right order (at most 1000). |
 | `profile_width_px` | `int` | **required** | Width (px) of the averaged column strip per lane. |
 | `label_rotation` | `float` | `90.0` | Rotation angle (deg) for lane labels in plots. |
 
@@ -362,10 +399,10 @@ Per-lane state within a run folder (from cache; nothing is recomputed).
 |---|---|---|---|
 | `index` | `int` | **required** | Lane index. |
 | `label` | `str` | **required** | Lane label. |
-| `has_fit` | `bool` | `False` | A fit for this lane exists in the cache. |
-| `fit_current` | `bool` | `False` | The cached fit still matches the current recipe (not stale). |
-| `status` | `Union` | `None` | Outcome of the cached fit, if any. Mirrors LaneFitResult.status, including 'empty' (converged, but no significant signal in the window) — a narrower set here would make `status` fail on a valid run. |
-| `n_bands` | `int` | `0` | Number of fitted bands in the cached fit. |
+| `has_fit` | `bool` | `False` | A fit for this lane exists in the cache: its file is there and, for a current fit, validates (a damaged file counts as missing). |
+| `fit_current` | `bool` | `False` | The fit the recipe, the stored configuration and the running gelpy version call for is in the cache and its file validates: it can be used as it stands. An edit that is undone makes its fit current again at once. |
+| `status` | `Literal['ok', 'empty', 'failed'] \| None` | `None` | Outcome of the current cached fit; null when the lane has none (the file of a stale fit is not read). Mirrors LaneFitResult.status, including 'empty' (converged, but no significant signal in the window) — a narrower set here would make `status` fail on a valid run. |
+| `n_bands` | `int` | `0` | Number of fitted bands in the current cached fit; 0 when the lane has none. |
 
 ## `LineProfileConfig`
 
@@ -373,9 +410,9 @@ How to turn a cached raw profile into a fit-ready profile.
 
 | field | type | default | description |
 |---|---|---|---|
-| `normalization` | `Literal` | `'area'` | Normalization applied before fitting. |
+| `normalization` | `Literal['area', 'min_max', 'safe']` | `'area'` | Normalization applied before fitting. |
 | `slice_start` | `int` | `0` | Inclusive start index of the slice. |
-| `slice_end` | `Union` | `None` | Exclusive end index; None means to the end of the profile. |
+| `slice_end` | `int \| None` | `None` | Exclusive end index; None means to the end of the profile. |
 
 ## `LineProfileConfigOverrides`
 
@@ -383,9 +420,9 @@ All-optional overrides merged onto a lane's last-used ``LineProfileConfig``.
 
 | field | type | default | description |
 |---|---|---|---|
-| `normalization` | `Union` | `None` | Profile normalization: 'area', 'min_max', or 'safe'. |
-| `slice_start` | `Union` | `None` | Profile slice start index. |
-| `slice_end` | `Union` | `None` | Profile slice end index. |
+| `normalization` | `Literal['area', 'min_max', 'safe'] \| None` | `None` | Profile normalization: 'area', 'min_max', or 'safe'. |
+| `slice_start` | `int \| None` | `None` | Profile slice start index. |
+| `slice_end` | `int \| None` | `None` | Profile slice end index. |
 
 ## `PerLaneFitConfig`
 
@@ -402,7 +439,7 @@ Parameters for the ``plane_ransac`` background model. ``stripes`` is a list of `
 
 | field | type | default | description |
 |---|---|---|---|
-| `stripes` | `Union` | `None` | (start_row, height) background stripes; None = heuristic default. |
+| `stripes` | `list[tuple[int, int]] \| None` | `None` | (start_row, height) background stripes; None = heuristic default. |
 
 ## `PriorConfig`
 
@@ -422,7 +459,7 @@ Linear Gaussian/Lorentzian blend for sharp, heavy-winged peaks (e.g. the well). 
 
 | field | type | default | description |
 |---|---|---|---|
-| `kind` | `Literal` | `'pseudo_voigt'` |  |
+| `kind` | `Literal['pseudo_voigt']` | `'pseudo_voigt'` |  |
 | `amplitude` | `float` | **required** | Peak height. |
 | `center` | `float` | **required** | Center position (px); also the maximum. |
 | `sigma` | `float` | **required** | Gaussian width (px). |
@@ -438,7 +475,7 @@ Human/agent-editable intent for a run (``recipe.json``). Deliberately excludes f
 | `image` | `ImageMeta` | _factory_ | Interpretation of the source image (channel/polarity/page). Feeds image_hash. |
 | `lanes` | `LaneLayout` | **required** |  |
 | `contrast` | `ContrastConfig` | _factory_ |  |
-| `background` | `Union` | `None` | Background-removal stage; None = no removal (passthrough). |
+| `background` | `BackgroundStageConfig \| None` | `None` | Background-removal stage; None = no removal (passthrough). |
 
 ## `RefitLaneRequest`
 
@@ -447,11 +484,12 @@ Refit a single lane, changing only the fields explicitly provided.
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `lane` | `Union` | **required** | The single lane to refit. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
+| `lane` | `int \| str` | **required** | The single lane to refit. A lane selector term: an integer index (0-based), or a string label. String prefixes: 're:<pattern>' matches labels by regex; 'label:<text>' forces a literal label match (escape hatch for numeric-looking labels); anything else is a literal label. |
 | `fit_overrides` | `FitConfigOverrides` | _factory_ | Fit-config fields to change; unset fields keep the lane's last-used values. |
 | `profile_overrides` | `LineProfileConfigOverrides` | _factory_ | Profile-config fields to change; unset fields keep the lane's last-used values. |
 | `auto_escalate` | `bool` | `False` | Climb the strategy ladder if this lane's confidence stays 'low'. |
 | `plot` | `bool` | `False` | Also render the lane's fit overlay PNG. |
+| `allow_raw` | `bool` | `False` | Measure the raw image although no background removal is configured. Off by default: profiles and fits of a raw image carry each lane's background floor into its normalization, so lanes are not comparable (background_required). |
 
 ## `RemoveBackgroundRequest`
 
@@ -461,8 +499,44 @@ Configure background removal (applied lazily by the pipeline, not eagerly).
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
 | `model` | `str` | `'robust_plane'` | Background model name (see `models list`). |
-| `params` | `dict` | _factory_ | Model-specific parameters, validated against the model's schema at apply time. |
-| `stripes` | `Union` | `None` | plane_ransac-only shim: (position, height) background stripes. Prefer `params`. |
+| `params` | `dict[str, Any]` | _factory_ | Model-specific parameters, validated against the model's schema at apply time. |
+| `stripes` | `list[tuple[int, int]] \| None` | `None` | plane_ransac-only shim: (position, height) background stripes. Prefer `params`. |
+| `plot` | `bool` | `False` | Also render the background diagnostic figure (render/background_diagnostic.png). |
+
+## `RenderImageRequest`
+
+Render the gel image of a run folder to a PNG under render/.
+
+| field | type | default | description |
+|---|---|---|---|
+| `run_dir` | `str` | **required** | Existing run folder. |
+| `kind` | `Literal['raw', 'linear', 'non_linear', 'corrected']` | `'corrected'` | Which image under which display contrast: 'raw' (the canonical array, no display contrast), 'linear' / 'non_linear' (the source under the recipe's linear range or gamma), 'corrected' (the background-corrected array under gamma). |
+| `lanes` | `bool` | `False` | Draw the semi-transparent lane strips over the image: a QC view of where gelpy measures, never the sample view. |
+
+## `ReportMarker`
+
+``.gelpy-report.json``: the one thing that says a folder is a report of gelpy's. ``report html`` writes it into the folder it builds, and only into a folder that is new, empty or already carries one (the run folder, the folders around it and inside it, and any folder that holds a recipe.json or a manifest.json, are no target whatever they carry). A rebuild replaces the files it lists, ``init --force`` removes them, and ``status`` compares its fingerprint with the run's: nothing else in the folder is ever touched. A marker is a plain file anyone can write, so it may list only names a build writes (``is_report_file``): a marker that lists anything else is no marker.
+
+| field | type | default | description |
+|---|---|---|---|
+| `gelpy_version` | `str` | **required** | The gelpy version that wrote the report. |
+| `fingerprint` | `str` | **required** | A short hash of the recipe, the stored fit configuration, the gelpy version and the fit of every lane the page shows. Empty while a build is running, or when one stopped half way. |
+| `files` | `list[str]` | **required** | Every file the build wrote, relative to the report folder, separated by '/'. Only names a build writes are accepted: index.html, report.css, theme.css, and PNGs directly in img/ and img/fits/, each file name at most 255 bytes. The marker itself is not listed. |
+
+## `ReportStatus`
+
+The HTML report in a run's own ``report/`` folder, as ``status`` reports it.
+
+| field | type | default | description |
+|---|---|---|---|
+| `path` | `str` | **required** | Run-relative path of the report's index.html. |
+| `current` | `bool` | **required** | True when the report was built from the recipe, the stored fit configuration, the fits and the gelpy version the run has now. False after a relabel, a refit, any other change of the recipe or of a lane's stored fit configuration, or a new gelpy version, and for a build that stopped half way: build it again with `gelpy report html`. |
+
+## `RequestModel`
+
+Base of every request model: a number in a request must be finite. A request is typed by a person or an agent, and JSON has no NaN or infinity: stored in recipe.json or fit_config.json, such a number reads back as null and the run folder no longer loads. Results are not strict: they are computed, and one NaN must not stop one from being reported.
+
+_none_
 
 ## `RobustPlaneParams`
 
@@ -471,12 +545,12 @@ Parameters for the ``robust_plane`` background model. An iterative-reweighted le
 | field | type | default | description |
 |---|---|---|---|
 | `order` | `int` | `1` | Polynomial surface order: 0=offset, 1=plane (default), 2=quadratic (captures vignetting/curvature; opt-in — can bend into diffuse haze). |
-| `weight_mode` | `Literal` | `'probabilistic'` | 'probabilistic' (default): two-component mixture, σ self-scaled to the noise floor — robust when signal covers a large image fraction. 'asymmetric': fixed Eilers ALS weight (simpler, no σ estimation). |
+| `weight_mode` | `Literal['probabilistic', 'asymmetric']` | `'probabilistic'` | 'probabilistic' (default): two-component mixture, σ self-scaled to the noise floor — robust when signal covers a large image fraction. 'asymmetric': fixed Eilers ALS weight (simpler, no σ estimation). |
 | `asymmetry_p` | `float` | `0.02` | Weight given to above-surface (signal) pixels in 'asymmetric' mode. |
 | `signal_prior` | `float` | `0.3` | Prior fraction of signal pixels for the 'probabilistic' mixture. |
 | `max_iter` | `int` | `15` | Max IRLS iterations. |
 | `tol` | `float` | `0.001` | Convergence tol on max weight change between iterations. |
-| `subsample` | `int` | `1` | Fit the surface on every n-th pixel (lossless for a smooth surface); evaluated on the full grid. Speed escape hatch for very large images. |
+| `subsample` | `int` | `1` | Fit the surface on every n-th pixel (lossless for a smooth surface); it is evaluated on the full grid without full-resolution coordinate grids. Speed and memory escape hatch for very large images. |
 | `contiguity` | `float` | `0.0` | Spatial-smoothing sigma (px) applied to the weight field each iteration; 0 disables. Makes weights coherent so isolated hot pixels aren't trusted as background. |
 | `clip_negative` | `bool` | `False` | If True, clamp negatives to 0 (legacy behaviour). Default False keeps signed residuals so the baseline stays centered at 0 — clamping rectifies noise into a positive pedestal that biases downstream peak integrals. |
 
@@ -487,8 +561,9 @@ Disposable cache ledger, fully regenerable from ``recipe.json`` + source image. 
 | field | type | default | description |
 |---|---|---|---|
 | `recipe_hash` | `str` | **required** | Content hash of the recipe that produced this manifest. |
-| `image` | `Union` | `None` | Resolved source-image identity. |
-| `stages` | `dict` | _factory_ |  |
+| `gelpy_version` | `str` | `''` | gelpy version that last wrote this manifest ('' before 1.1). |
+| `image` | `ImageRef \| None` | `None` | Resolved source-image identity. |
+| `stages` | `dict[str, StageRecord]` | _factory_ |  |
 
 ## `RunStatus`
 
@@ -497,18 +572,21 @@ A cold-orientation snapshot of a run folder: what's configured, fit, or stale. A
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | The run folder this status describes. |
-| `source_image` | `str` | **required** | Path to the source image referenced by the recipe. |
+| `source_image` | `str` | **required** | The source image path as the recipe records it: relative to the run folder where possible. |
 | `image_width` | `int` | **required** | Source image width (px). |
 | `image_height` | `int` | **required** | Source image height (px). |
-| `background` | `Union` | `None` | Configured background model name, or null if none. |
-| `polarity` | `Union` | `None` | Recorded source-image polarity. |
-| `polarity_confidence` | `Union` | `None` | Polarity-detection confidence. |
-| `warnings` | `list` | _factory_ | Unresolved non-fatal image warnings. |
+| `background` | `str \| None` | `None` | Configured background model name, or null if none. |
+| `polarity` | `Literal['bright_on_dark', 'dark_on_light'] \| None` | `None` | Recorded source-image polarity. |
+| `polarity_confidence` | `Literal['ok', 'low'] \| None` | `None` | Polarity-detection confidence. |
+| `warnings` | `list[str]` | _factory_ | Unresolved non-fatal image warnings. |
 | `n_lanes` | `int` | `0` | Number of lanes in the recipe. |
 | `n_fit` | `int` | `0` | Lanes with a current (non-stale) fit. |
-| `n_stale` | `int` | `0` | Lanes with a fit that no longer matches the recipe. |
+| `n_stale` | `int` | `0` | Lanes whose recorded fit cannot be used as it stands: the recipe, the stored configuration or the running gelpy version changed since it was computed and the fit they now call for is not in the cache, or its cache file is missing or damaged. After an edit is undone the lane is current again at once: the cache keeps every fit it computed. |
 | `n_failed` | `int` | `0` | Lanes whose current fit failed. |
-| `lanes` | `list` | _factory_ | Per-lane state. |
+| `stale_stages` | `list[str]` | _factory_ | Stages the next command that needs them would recompute: recorded in the ledger, for a lane the recipe still has, with no cache artifact for the current recipe and running gelpy version (a damaged fit file counts as missing). Examples: 'background' after a background change, 'profile:lane=3' after a lane moved. A stage whose artifact is cached is not listed, so after an edit is undone nothing is. A deleted artifact stays listed until a command that needs it computes it again: a fit that is cached pulls on nothing upstream, so `fit run` leaves a missing image, background or profile listed. Lane stages are sorted by kind, then lane number. |
+| `lanes` | `list[LaneStatus]` | _factory_ | Per-lane state. |
+| `report` | `ReportStatus \| None` | `None` | The HTML report in the run's own report/ folder and whether it is current (it shows the run as it is now), or null when there is none: no folder, or one that `gelpy report html` did not write. |
+| `gelpy_version` | `str` | `''` | The gelpy version answering this call. |
 
 ## `RunUpdateSummary`
 
@@ -516,12 +594,12 @@ Terse result of a command: what recomputed, what was reused, where files landed.
 
 | field | type | default | description |
 |---|---|---|---|
-| `recomputed` | `list` | _factory_ |  |
-| `reused` | `list` | _factory_ |  |
-| `lanes` | `dict` | _factory_ |  |
-| `files` | `dict` | _factory_ |  |
-| `warnings` | `list` | _factory_ | Non-fatal, ignorable messages for the agent/user. |
-| `image` | `dict` | _factory_ | Structured image interpretation decision (polarity/channel). |
+| `recomputed` | `list[str]` | _factory_ |  |
+| `reused` | `list[str]` | _factory_ |  |
+| `lanes` | `dict[str, Any]` | _factory_ |  |
+| `files` | `dict[str, str]` | _factory_ |  |
+| `warnings` | `list[str]` | _factory_ | Non-fatal, ignorable messages for the agent/user. |
+| `image` | `dict[str, Any]` | _factory_ | Structured image interpretation decision (polarity/channel). |
 
 ## `SetContrastRequest`
 
@@ -530,11 +608,11 @@ Adjust display contrast (cosmetic; never affects analysis).
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `gamma` | `Union` | `None` | Gamma-correction exponent. |
-| `gain` | `Union` | `None` | Gamma-correction gain. |
-| `intensity_low` | `Union` | `None` | Lower intensity clip bound. |
-| `intensity_high` | `Union` | `None` | Upper intensity clip bound. |
-| `intensity_mode` | `Union` | `None` | How intensity bounds are interpreted: 'percentile' or 'absolute'. |
+| `gamma` | `float \| None` | `None` | Gamma-correction exponent. |
+| `gain` | `float \| None` | `None` | Gamma-correction gain. |
+| `intensity_low` | `float \| None` | `None` | Lower intensity clip bound. |
+| `intensity_high` | `float \| None` | `None` | Upper intensity clip bound. |
+| `intensity_mode` | `str \| None` | `None` | How intensity bounds are interpreted: 'percentile' or 'absolute'. |
 
 ## `SetImageRequest`
 
@@ -543,9 +621,9 @@ Re-interpret the source image of an existing run (polarity/channel/page).
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `channel` | `Union` | `None` | New channel strategy; None keeps current. |
-| `invert` | `Union` | `None` | Force polarity; None keeps current unless --auto. |
-| `page` | `Union` | `None` | New page index; None keeps current. |
+| `channel` | `str \| None` | `None` | New channel strategy; None keeps current. |
+| `invert` | `bool \| None` | `None` | Force polarity; None keeps current unless --auto. |
+| `page` | `int \| None` | `None` | New page index; None keeps current. |
 | `auto` | `bool` | `False` | Re-run auto-detection for polarity. |
 
 ## `SetLanesRequest`
@@ -555,13 +633,13 @@ Set lane positions / labels / width. Changing positions or width auto-invalidate
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
-| `linspace` | `Union` | `None` | (left, right, n) evenly spaced lane centers in px. |
-| `x_centers` | `Union` | `None` | Explicit lane center x-positions in px (alternative to linspace). |
-| `endpoints` | `Union` | `None` | (left, right) outer lane-center x-positions in px; the N lane centers are linspaced between them. N comes from `n_lanes` or the current lane count. This is the manual fallback when `lanes detect` is uncertain — read the two outer centers off the detection overlay. |
-| `n_lanes` | `Union` | `None` | Lane count for `endpoints` (defaults to the current count). |
-| `labels` | `Union` | `None` | Lane labels; must match the number of positions. |
-| `width` | `Union` | `None` | Profile strip width (px). |
-| `label_rotation` | `Union` | `None` | Label rotation (deg) in plots. |
+| `linspace` | `tuple[float, float, int] \| None` | `None` | (left, right, n) evenly spaced lane centers in px; n is at most 1000. |
+| `x_centers` | `list[float] \| None` | `None` | Explicit lane center x-positions in px, at most 1000 (alternative to linspace). |
+| `endpoints` | `tuple[float, float] \| None` | `None` | (left, right) outer lane-center x-positions in px; the N lane centers are linspaced between them. N comes from `n_lanes` or the current lane count. This is the manual fallback when `lanes detect` is uncertain — read the two outer centers off the detection overlay. |
+| `n_lanes` | `int \| None` | `None` | Lane count for `endpoints`, at most 1000 (defaults to the current count). |
+| `labels` | `list[str] \| None` | `None` | Lane labels, at most 1000; must match the number of positions. |
+| `width` | `int \| None` | `None` | Profile strip width (px). |
+| `label_rotation` | `float \| None` | `None` | Label rotation (deg) in plots. |
 
 ## `StageRecord`
 
@@ -573,7 +651,8 @@ One entry in the cache ledger: what was computed, its hash, and where it lives.
 | `key` | `str` | **required** | Fully-qualified stage key, e.g. 'fit:lane=12'. |
 | `hash` | `str` | **required** | Content hash that this cache entry is keyed by. |
 | `cache_path` | `str` | **required** | Run-relative path to the cached artifact. |
-| `inputs` | `dict` | _factory_ | Resolved inputs that produced the hash (for debugging). |
+| `inputs` | `dict[str, Any]` | _factory_ | Resolved inputs that produced the hash (for debugging). |
+| `gelpy_version` | `str` | `''` | gelpy version that computed this stage ('' before 1.1). A fit with no entry in fit_config.json has no config to recompute its hash from; this tells whether it is stale after an upgrade. |
 
 ## `StatusRequest`
 
@@ -582,3 +661,37 @@ Report the current state of a run folder (configured / fit / stale lanes).
 | field | type | default | description |
 |---|---|---|---|
 | `run_dir` | `str` | **required** | Existing run folder. |
+
+## `ToolAnnotations`
+
+Behaviour hints, named as in the Model Context Protocol.
+
+| field | type | default | description |
+|---|---|---|---|
+| `read_only_hint` | `bool` | **required** | The tool changes nothing on disk. |
+| `destructive_hint` | `bool` | **required** | The tool may overwrite intent a person or an agent wrote (recipe.json, fit_config.json, an existing run). Rendering and caching are not destructive. |
+| `idempotent_hint` | `bool` | **required** | Repeating the call with the same arguments changes nothing further, the append-only history log aside. |
+| `open_world_hint` | `bool` | `False` | Always false: gelpy reads and writes local files only. |
+
+## `ToolList`
+
+What `gelpy tool list --json` prints.
+
+| field | type | default | description |
+|---|---|---|---|
+| `gelpy_version` | `str` | **required** | The gelpy version serving these tools. |
+| `tools` | `list[ToolSpec]` | **required** | Every tool, in workflow order. |
+
+## `ToolSpec`
+
+One tool: its name (public API, stable within a major version), schemas and hints.
+
+| field | type | default | description |
+|---|---|---|---|
+| `name` | `str` | **required** | Tool name, e.g. 'lanes_detect'. |
+| `title` | `str` | **required** | Short human-readable title. |
+| `description` | `str` | **required** | What the tool does and what to check afterwards. |
+| `input_schema` | `dict[str, Any]` | **required** | JSON Schema of the one JSON object the tool reads; registry names are enums. |
+| `output_schema` | `dict[str, Any]` | **required** | JSON Schema of the one JSON object it writes on success. |
+| `annotations` | `ToolAnnotations` | **required** | Behaviour hints: read-only, destructive, idempotent, open-world. |
+| `paths` | `dict[str, Literal['run', 'input', 'output']]` | _factory_ | Arguments that are file system paths: 'run' (a run folder), 'input' (a file the tool reads), 'output' (a file or folder it writes). Only `gelpy tool list` carries them: the MCP server does not advertise them. |

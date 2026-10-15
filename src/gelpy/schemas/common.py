@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CanonicalModel(BaseModel):
@@ -27,11 +27,23 @@ class ErrorResponse(CanonicalModel):
     ``code`` is a stable machine-readable discriminator (e.g. ``lane_selection``,
     ``registry``, ``source_image_changed``) so an agent can branch on the failure
     kind without string-matching the message. ``available`` carries the valid
-    choices when the error is a bad selector or an unknown registry name, so an
-    agent can recover without reading source.
+    choices when the error is a bad selector, an unknown registry name or a value
+    outside a fixed set, so an agent can recover without reading source.
     """
 
-    error: str
-    code: str | None = None
-    detail: str | None = None
-    available: list[str] | None = None
+    error: str = Field(description="What failed, for people and logs. Do not parse it.")
+    code: str | None = Field(
+        default=None,
+        description="Stable machine-readable kind of failure; branch on this. Catalogue: "
+        "docs/reference/errors.md.",
+    )
+    detail: str | None = Field(
+        default=None,
+        description="The next step: what to run or change. For code 'validation_error' it is "
+        "the JSON list of field errors instead.",
+    )
+    available: list[str] | None = Field(
+        default=None,
+        description="The valid choices, when the failure is an unknown name or option, or a "
+        "validation_error on a field that takes one of a fixed set of values.",
+    )

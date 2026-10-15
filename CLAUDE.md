@@ -12,8 +12,10 @@ targeted edit (e.g. refitting one lane) recomputes only what changed.
 
 ## Commands
 
-- Local dev install: `pip install -e .` (hatchling backend; `pyproject.toml` is the
-  source of truth). Optional notebook extras: `pip install -e ".[notebook]"`.
+- Local dev install: `pip install -e ".[dev,mcp]"` (hatchling backend; `pyproject.toml` is the
+  source of truth). `dev` is the test and documentation suites; `mcp` is the optional package
+  `gelpy mcp` serves with (the tests of the server skip without it, CI installs it).
+  `pip install -e ".[notebook]"` adds the notebook libraries.
 - Run the CLI: `gelpy ...` or `python -m gelpy ...`.
 - Run all tests: `pytest tests/`
 - Run one layer: `pytest tests/core`, `pytest tests/runfolder`, `pytest tests/cli`, etc.
@@ -24,10 +26,13 @@ targeted edit (e.g. refitting one lane) recomputes only what changed.
 ## Architecture
 
 Strictly one-directional dependencies: `schemas/` → `core/` → (`render/` + `runfolder/`) → `cli/`.
+`utils/` (`atomic_write`, `cm_to_inch`) sits outside the layers: `render/` and `runfolder/` both
+write through `atomic_write`.
 
 - **`schemas/`** — pydantic v2 contracts. No numpy/scipy/matplotlib; importable
   standalone. Every model subclasses `CanonicalModel` (`extra="forbid"`), so an
-  unknown field/name is a hard `ValidationError`. Key models: `Recipe` (persisted
+  unknown field/name is a hard `ValidationError`. Every request derives from `RequestModel`,
+  so a number in a request must be finite. Key models: `Recipe` (persisted
   intent; deliberately excludes fit config), `FitRunRequest`/`RefitLaneRequest`,
   `FitConfig` (strategy `method` + `baseline`/`shapes`/`priors`/`seed`; the seed keeps the
   bayesian tier cacheable), the discriminated `PeakParams` shapes, `BandFit`
@@ -35,12 +40,19 @@ Strictly one-directional dependencies: `schemas/` → `core/` → (`render/` + `
   `LaneFitResult` (`coverage`/`residual_fraction`/`confidence`/`confidence_reasons`;
   `to_rows()` emits true-area columns), `BaselineConfig`,
   `FitConfigStore`/`PerLaneFitConfig` (durable per-lane `(profile, fit)` intent → `fit_config.json`),
-  `RunStatus`/`LaneStatus` (the `status` command's result), `ErrorResponse` (carries a
-  machine-readable `code`).
+  `RunStatus`/`LaneStatus` (the `status` command's result; its `report` is a `ReportStatus`),
+  `ErrorResponse` (carries a machine-readable `code`), `ToolSpec` (a tool as
+  `gelpy tool list --json` describes it), `ReportMarker` (`report/.gelpy-report.json`).
 
 - **`core/`** — pure algorithms on ndarrays. `image_io.canonicalize_image` is the single
   input funnel: any dtype/RGB(A)/multi-page source -> a canonical **float64 [0,1],
-  signal-bright, finite** 2-D array + a recorded `ImageMeta` (channel + polarity + page).
+  signal-bright, finite** 2-D array + a recorded `ImageMeta` (channel + polarity + page). The
+  file header is probed first, and a file over the pixel or page cap (`GELPY_MAX_PIXELS`,
+  `GELPY_MAX_PAGES`) is refused before any pixel is decoded. What tifffile logs while it reads a
+  file (it logs a damaged TIFF and carries on) is kept in `ImageMeta.reader_warnings`, which
+  `init`, `image set` and `status` show; no decoder text reaches an error with the file's folders.
+  `text.decode_utf8` decodes the text files a person hands gelpy or edits (labels, stylesheet,
+  recipe.json, fit_config.json) and names the file, the line and the encoding when one is not UTF-8.
   Polarity is auto-detected (skew + tail-asymmetry), confidence-flagged, and overridable
   (`--invert`/`image set`); detection runs once at init, and the frozen `ImageMeta` (folded
   into `image_hash`) drives a deterministic `apply_image_meta` replay in the cached
@@ -77,44 +89,71 @@ Strictly one-directional dependencies: `schemas/` → `core/` → (`render/` + `
   fit returns a `LaneFitResult(status=...)`, never a raised error.
 
 - **`render/`** — the ONLY place matplotlib is imported (`Agg` set in `__init__`).
-  Every renderer is a pure `data → PNG` (or markdown) function; nothing calls `plt.show()`.
+  Every renderer is a pure `data → PNG` (or markdown, or HTML) function; nothing calls
+  `plt.show()`. `report.py` builds `report.md`; `html_report.py` builds the static HTML report
+  (stdlib only: no script, no inline style, every text value escaped) from a `ReportContent` and
+  the bytes of the images that `cli/_render.py` collects.
 
 - **`runfolder/`** — run-folder format + caching + orchestration (the crux).
   - `stages.py` holds the hash chain: `image → background → profile[lane] → fit[lane]`.
     Every hash is computed from the recipe + small config objects (never the image),
     so deciding what to recompute is a few sha256-over-small-JSON ops.
     `profile_hash` deliberately excludes slice/normalization/label; those feed `fit_hash`.
-  - `cache.py` — content-addressed `get_or_compute_*` with atomic writes (pass an open
-    file object to `np.save`/`np.savez` so they don't mangle the temp filename) and
-    corrupt-file recovery.
+  - `cache.py` — content-addressed `get_or_compute_*` with atomic writes (`utils/atomic.py`;
+    pass an open file object to `np.save`/`np.savez` so they don't mangle the temp filename)
+    and corrupt-file recovery. The gelpy version is part of every key (`stages.code_version`),
+    not a hash of the code: an edit within one version reuses old caches.
+  - `lock.py` — the advisory lock (`flock` on `<run>/.gelpy.lock`) that every writer holds. The
+    commands that write and the renderers in `cli/_render.py` take it, a reader never waits for
+    it, and a second writer gets `run_locked` at once. A new writer wraps itself in `locked` /
+    `locked_run_dir`; tests fail for a command or tool that forgot. Taking the lock also refuses
+    a run whose own folders (`layout.WRITTEN_FOLDERS`) are links (`RunPaths.require_real_folders`):
+    gelpy never writes through a link inside a run folder. Files go through `atomic_write`, which
+    replaces a leaf link; the two it opens in place (the lock, `log/history.jsonl`) go through
+    `layout.open_no_follow`.
   - `pipeline.py` — each `ensure_*` checks its own cache before invoking its upstream
     (a lazy thunk), so a fit cache-hit never re-decodes the image or re-runs RANSAC.
-  - `commands.py` — pure `f(request) -> result` (no argv/stdout). This is the seam a
-    future MCP server wraps directly. Includes `status` (cold-orientation snapshot,
-    no recompute) and `detect_lanes` (image-based lane placement → `LaneDetectionResult`;
-    `--apply` persists via the same `_build_layout` path as `set_lanes`; `set_lanes` also
+  - `commands.py` — pure `f(request) -> result` (no argv/stdout). This is the seam the tool
+    layer (`cli/tools.py`) wraps, which the MCP server serves. Includes `status`
+    (cold-orientation snapshot, no recompute) and `detect_lanes` (image-based lane placement
+    → `LaneDetectionResult`; `--apply` persists via the same `_build_layout` path as
+    `set_lanes`; `set_lanes` also
     takes `endpoints` as the manual fallback). Per-lane fit intent is durable:
     `fit_run`/`refit_lane` seed
     `fit_config_io.py`'s `FitConfigStore` (last-write-wins) — it is NOT on the
     disposable manifest, so it survives a manifest wipe and is hand/agent editable.
   - `results.py` — assembles `results.csv`/`results.json` from cached fits (no recompute);
     `_fit_is_current` recomputes each lane's expected `fit_hash` from the store to drop
-    stale fits after a recipe edit.
+    stale fits after a recipe edit. A fit is current when its expected artifact is cached, whatever
+    the ledger says: `follow_the_cache` re-points the in-memory records of a manifest that a
+    reader (`status`, `results show`, the plots, the report) has just loaded, so an undone edit
+    makes the older fits current again. `read_fit_result` reads a cache file and names it, never
+    what is in it, when it does not validate.
+  - `report_folder.py` — which folder an HTML report may be written into (new, empty, or one
+    that carries the marker `report/.gelpy-report.json`; never the run folder or a folder around
+    it), what a rebuild and `init --force` remove (only the files the marker lists), and the
+    fingerprint `status` compares to say whether the report is current.
 
 - **`cli/`** — thin typer layer. `app.py` (commands), `_io.py` (output + `parse_lane_term`;
   errors go through `core.errors.to_error_response` → `ErrorResponse` with a stable `code`,
-  shared with any future MCP wrapper), `_render.py` (rendering orchestration: reads caches,
-  calls `render.*`, keeps `commands` matplotlib-free). Every command that touches a run folder
-  takes the run directory as an explicit **positional** argument (`gelpy fit run RUN_DIR ...`) —
-  there is no ambient "current run", so a shell history is self-contained and replayable;
-  `schema` and `models list` are the two run-folder-free commands.
+  shared with `gelpy tool call` and the MCP server), `_render.py` (rendering orchestration:
+  reads caches, calls `render.*`, keeps `commands` matplotlib-free), `tools.py` (the tool layer:
+  each workflow step as one JSON-in/JSON-out `Tool`, the command plus the rendering its CLI step
+  does, under one run lock; the typer commands, `gelpy tool list/call` and the MCP server all run
+  it; the tool names are public API and change only with a major version), `mcp_server.py`
+  (`gelpy mcp`: the stdio MCP server over `tools.py`, one call at a time in a worker thread; the
+  optional `mcp` package is imported only when it starts). Every command that
+  touches a run folder takes the run directory as an explicit **positional** argument
+  (`gelpy fit run RUN_DIR ...`) — there is no ambient "current run", so a shell history is
+  self-contained and replayable; `schema`, `models list`, `tool list` and `mcp` are the
+  run-folder-free commands (`tool call` takes the run directory in its JSON).
   `_pick.py` (the `lanes pick` command) is the one deliberate exception to "matplotlib
   only in `render/`": it's an interactive human-in-the-loop lane-center picker, so it
   selects a *real* (non-`Agg`) backend itself. It's the last-resort manual fallback after
-  `lanes detect` + overlay verification. Command tree: top-level `init`/`status`/`schema`
+  `lanes detect` + overlay verification. Command tree: top-level `init`/`status`/`schema`/`mcp`
   plus sub-apps `lanes` (`set`/`detect`/`pick`), `contrast`, `background` (`remove`/`show`),
   `image` (`show`/`set`), `profiles extract`, `fit` (`run`/`refit-lane`), `results show`,
-`models list`.
+  `report html`, `models list`, `tool` (`list`/`call`).
 
 ## Run folder format
 
@@ -123,9 +162,12 @@ Strictly one-directional dependencies: `schemas/` → `core/` → (`render/` + `
   recipe.json              # editable intent — precious
   fit_config.json          # per-lane fit intent — precious, editable (sparse; only fit lanes)
   manifest.json            # cache ledger — disposable, regenerable
+  .gelpy.lock              # advisory lock, held while a command writes the folder
   cache/{image,background,profiles,fits}/...
-  render/*.png, render/fits/lane_NNN.png
+  render/*.png, render/fits/lane_NNN.png, render/fits/index.json
   results.csv / results.json / report.md
+  report/                  # gelpy report html: index.html, report.css, theme.css, img/
+    .gelpy-report.json     # marks the folder as the report's and lists the files it wrote
   log/history.jsonl        # append-only command log
 ```
 
@@ -152,6 +194,10 @@ The source image is referenced by path + sha256, not copied in by default.
   `core.lanes.projection_strategies`; it is adopted per image only if its comb-SNR beats
   full height by `_ADAPTIVE_MARGIN`, so a new strategy can never make detection worse.
 - Adding a request/result field: put it on the pydantic contract in `schemas/`.
+- Adding a tool (a workflow step an agent can call): a request model (a `RequestModel`) and a
+  result model in `schemas/`, a handler in `cli/tools.py` that runs the command and its rendering
+  under the run lock, and a `Tool` in its registry. `tests/cli/test_tools.py` pins the names:
+  adding one is a minor change, renaming or removing one a major.
 - Keep matplotlib imports inside `render/` (and `cli/_render.py`, which drives it; plus
   `cli/_pick.py`, the interactive picker, which selects a real GUI backend itself).
 - **Documentation is verified, not trusted.** `docs/reference/` is generated
@@ -183,8 +229,7 @@ The source image is referenced by path + sha256, not copied in by default.
 
 ## Deferred (designed for, not built)
 
-MCP server (thin wrapper over `runfolder/commands.py`; reuses `to_error_response` +
-`schema` discovery), agent-guided auto-tuning (`tune`/`refit-all` write into
-`FitConfigStore` — no new persistence), on-demand HTML report + notebook scaffolding
-(template siblings of `render/report.py`; `AnalysisResult.to_dataframe()` is the notebook
-bridge), `replay` from `log/history.jsonl`, MW/ladder calibration, run-folder locking.
+Agent-guided auto-tuning (`tune`/`refit-all` write into
+`FitConfigStore` — no new persistence), notebook scaffolding (a template sibling of
+`render/report.py`; `AnalysisResult.to_dataframe()` is the notebook bridge), `replay` from
+`log/history.jsonl`, MW/ladder calibration.

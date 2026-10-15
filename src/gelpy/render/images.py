@@ -12,6 +12,7 @@ from ..core.contrast import apply_gamma, rescale_linear
 from ..schemas.contrast import ContrastConfig
 from ..schemas.lanes import LaneLayout
 from ..utils.units import cm_to_inch
+from ._figure import plain_text, save_figure
 
 
 def _for_display(image: np.ndarray) -> np.ndarray:
@@ -59,8 +60,6 @@ def render_gel_image(
     per-lane tick labels above the image are drawn whenever a ``layout`` is given, since
     they don't obscure the sample and are useful even on a plain contrast view.
     """
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     disp = _adjust(image, contrast, mode)
 
     fig, ax = plt.subplots(figsize=(cm_to_inch(18), cm_to_inch(12)))
@@ -81,9 +80,7 @@ def render_gel_image(
                 )
                 ax.add_patch(rect)
         ax.set_xticks([lane.x_center_px for lane in layout.lanes])
-        ax.set_xticklabels(layout.labels(), rotation=layout.label_rotation)
+        ax.set_xticklabels([plain_text(label) for label in layout.labels()], rotation=layout.label_rotation)
         ax.xaxis.set_ticks_position("top")
 
-    fig.savefig(out_path, bbox_inches="tight", dpi=300)
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path, bbox_inches="tight", dpi=300)

@@ -10,6 +10,17 @@ command's output machine-readable.
 This page is generated from the typer application, so it cannot describe a flag that does
 not exist. `gelpy <command> --help` prints the same information at the terminal.
 
+## Options of `gelpy` itself
+
+Before any command name, as in `gelpy --version`.
+
+| option | type | default | description |
+|---|---|---|---|
+| `--version` | `boolean` |  | Print the gelpy version and exit. |
+| `--install-completion` | `boolean` |  | Install completion for the current shell. |
+| `--show-completion` | `boolean` |  | Show completion for the current shell, to copy it or customize the installation. |
+
+
 ## `gelpy background`
 
 Configure and inspect background removal.
@@ -90,6 +101,7 @@ Refit one lane, changing only the options you pass (merged onto its last setting
 | `--seed` | `integer` |  | RNG seed. |
 | `--auto-escalate` | `boolean` |  | Climb tiers on low confidence. |
 | `--plot`, `--no-plot` | `boolean` |  |  |
+| `--allow-raw` | `boolean` |  | Measure the raw image although no background removal is configured (refused otherwise: background_required). |
 | `--format` | `text` | `json` | Output format: json\|text. |
 
 ### `gelpy fit run`
@@ -112,6 +124,7 @@ Run a full fit pass over a lane selection (no manual peak-detection tuning neede
 | `--seed` | `integer` |  | RNG seed (reproducible bayesian tier). |
 | `--auto-escalate` | `boolean` |  | Climb tiers on low confidence. |
 | `--plot`, `--no-plot` | `boolean` |  |  |
+| `--allow-raw` | `boolean` |  | Measure the raw image although no background removal is configured (refused otherwise: background_required). |
 | `--format` | `text` | `json` | Output format: json\|text. |
 
 ## `gelpy image`
@@ -166,6 +179,7 @@ Create a run folder with a default lane layout.
 | `--channel` | `text` | `auto` | Channel->grayscale: auto\|mean\|luminance\|r\|g\|b\|dominant\|max. |
 | `--invert`, `--no-invert` | `boolean` |  | Force polarity; omit to auto-detect. |
 | `--page` | `integer` |  | Page index for a multi-page source. |
+| `--force` | `boolean` |  | Replace the run if the folder already holds one (results, report and renders are removed; cache and history are kept). |
 | `--format` | `text` | `json` | Output format: json\|text. |
 
 ## `gelpy lanes`
@@ -233,6 +247,11 @@ Set lane positions / labels / width.
 | `--label-rotation` | `float` |  | Label rotation (deg). |
 | `--format` | `text` | `json` | Output format: json\|text. |
 
+## `gelpy mcp`
+
+Serve the agent tools over the Model Context Protocol on stdin/stdout. Needs the optional dependency: pip install "gelpy[mcp]". Register it with an MCP client, for example `claude mcp add gelpy -- gelpy mcp`.
+
+
 ## `gelpy models`
 
 Discover available models.
@@ -264,6 +283,25 @@ Extract (and cache) the raw line profiles for a lane selection.
 | `--normalization` | `text` | `area` | area\|min_max\|safe (for the plot). |
 | `--slice` | `<integer integer>` |  | start end. |
 | `--plot`, `--no-plot` | `boolean` |  | Render the profiles overview PNG. |
+| `--allow-raw` | `boolean` |  | Measure the raw image although no background removal is configured (refused otherwise: background_required). |
+| `--format` | `text` | `json` | Output format: json\|text. |
+
+## `gelpy report`
+
+Write reports of a run folder.
+
+### `gelpy report html`
+
+Write a static HTML report of the run folder: one page, a stylesheet and its images, no scripts.
+
+| argument | type | required | description |
+|---|---|---|---|
+| `RUN_DIR` | `text` | **required** | Existing run folder. |
+
+| option | type | default | description |
+|---|---|---|---|
+| `--css` | `text` |  | Path of a UTF-8 stylesheet file (at most 1 MiB), copied unparsed as theme.css and loaded after the default; its references are yours (a relative url() resolves against the report folder). |
+| `--out` | `text` |  | Folder to write the report into (default: RUN_DIR/report). It must be new, empty or hold the output of an earlier report html: any other non-empty folder is refused, and so are the run folder and the folders inside or around it (but report/). A rebuild replaces only the files that earlier build wrote. One report per folder. |
 | `--format` | `text` | `json` | Output format: json\|text. |
 
 ## `gelpy results`
@@ -303,3 +341,27 @@ Report a run folder's state: source, background, and per-lane fit/stale status.
 | option | type | default | description |
 |---|---|---|---|
 | `--format` | `text` | `json` | Output format: json\|text. |
+
+## `gelpy tool`
+
+Discover and call the agent tools: one JSON object in, one JSON object out.
+
+### `gelpy tool call`
+
+Run one tool: read one JSON object, write one JSON object (an error on stderr).
+
+| argument | type | required | description |
+|---|---|---|---|
+| `NAME` | `text` | **required** | Tool name (see `gelpy tool list`). |
+
+| option | type | default | description |
+|---|---|---|---|
+| `--input` | `text` | `-` | File holding the JSON object (UTF-8; a byte order mark is ignored); '-' (the default) reads stdin. |
+
+### `gelpy tool list`
+
+List the agent tools (`gelpy tool call NAME` runs one).
+
+| option | type | default | description |
+|---|---|---|---|
+| `--json` | `boolean` |  | Print every tool's name, title, description, input and output JSON Schema, annotations and path arguments. |

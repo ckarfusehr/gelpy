@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from ..schemas.common import CanonicalModel
-from .errors import RegistryError
+from .errors import RegistryError, shown
 
 T = TypeVar("T")
 
@@ -52,7 +52,7 @@ class Registry(Generic[T]):
             return self._entries[name].factory
         except KeyError:
             raise RegistryError(
-                f"Unknown {self.kind} model {name!r}.", available=self.names()
+                f"Unknown {self.kind} model {shown(name)}.", available=self.names()
             ) from None
 
     def config_model(self, name: str) -> type[CanonicalModel] | None:

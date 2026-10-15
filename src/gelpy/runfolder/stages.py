@@ -28,8 +28,19 @@ class StageName(str, Enum):
     FIT = "fit"
 
 
+def code_version() -> str:
+    """The running gelpy version.
+
+    Part of ``image_hash`` and therefore of every stage hash chained to it, so a new version
+    never reuses a cache an older one wrote. Read at call time, not at import.
+    """
+    import gelpy
+
+    return gelpy.__version__
+
+
 def image_hash(recipe: Recipe) -> str:
-    """Identity of the CANONICAL image = source bytes + how they are interpreted.
+    """Identity of the CANONICAL image = source bytes + how they are interpreted + the gelpy version.
 
     Folds the ``ImageMeta`` interpretation fields (channel + invert + page) into the hash so
     that changing ``--invert``/``--channel``/``--page`` invalidates the cached array (and, by
@@ -42,6 +53,7 @@ def image_hash(recipe: Recipe) -> str:
         channel_index=m.channel_index,
         inverted=m.inverted,
         page=m.page,
+        code=code_version(),
     )
 
 

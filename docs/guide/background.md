@@ -7,7 +7,7 @@ subject:
   - src/gelpy/core/background/robust_plane.py
   - src/gelpy/core/background/plane_ransac.py
   - src/gelpy/schemas/background.py
-subject_digest: 64a24c19596943ee
+subject_digest: 27351e9e6d05a169
 ---
 
 ## Why this stage is not optional
@@ -47,7 +47,9 @@ before this stage.
 
 Background removal is **off in a fresh run folder**: `gelpy init` writes
 `recipe.json` with `background: null`, which the pipeline treats as passthrough (no cache
-entry is created or consulted). You must configure it. The default model is `robust_plane`;
+entry is created or consulted). You must configure it, and gelpy checks: `profiles extract`,
+`fit run` and `fit refit-lane` refuse a run without it (`background_required`) unless you pass
+`--allow-raw` to measure the raw image on purpose. The default model is `robust_plane`;
 `plane_ransac` is a fallback only. <!-- claim: default-background-model -->
 
 ```bash
@@ -230,10 +232,13 @@ Parameters and their ranges: `gelpy models list --kind background`. Set any of t
 `--param key=value`; `--order` and `--mode` are shorthands. What the numbers say:
 
 - **`--param subsample=4`** first, on anything large. The fit uses every 4th row and column
-  (1/16 of the pixels), the surface is still evaluated on the full grid: ~9x faster here
+  (1/16 of the pixels), the surface is still evaluated on the full grid: ~10x faster here
   (same 13 iterations), the two surfaces differing by an RMS of 9e-7 (0.003 sigma). Not
   bit-identical, so the field description's "lossless" is too strong — but far below the
-  noise floor.
+  noise floor. It also saves memory: the surface is evaluated from two 1-D coordinate vectors,
+  so a subsampled fit builds no full-resolution coordinate grids and no design matrix. Peak
+  allocation of the fit on this gel (`tracemalloc` around the model's `remove`, a 51 MB image):
+  516 MB at `subsample=4` against 900 MB for the default fit.
 - **`--order 2`** when the illumination is visibly curved (vignetting). Here it cuts the
   residual sigma 36 % (2.75e-4 -> 1.75e-4) but runs to the 15-iteration cap without
   converging. Opt-in, because a quadratic can also bend into diffuse haze, which is signal.
@@ -284,8 +289,12 @@ gelpy background remove "$RUN" --stripe 10,5 --format text
 ```
 
 ```text
-{"error": "validation error", "code": "validation_error",
- "detail": "[{\"type\": \"extra_forbidden\", \"loc\": [\"stripes\"], ...}]"}
+{
+  "error": "RobustPlaneParams: stripes: Extra inputs are not permitted. `gelpy schema RobustPlaneParams` prints the contract.",
+  "code": "validation_error",
+  "detail": "[{\"type\": \"extra_forbidden\", \"loc\": [\"stripes\"], \"msg\": \"Extra inputs are not permitted\", \"input\": [[10, 5]]}]",
+  "available": null
+}
 ```
 
 ## Known limitations

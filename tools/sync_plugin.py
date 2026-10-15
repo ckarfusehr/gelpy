@@ -46,7 +46,7 @@ def _fail(message: str) -> None:
 def _load_manifest() -> dict:
     if not MANIFEST.exists():
         _fail(f"{MANIFEST.relative_to(REPO)} not found -- is this a gelpy checkout?")
-    return json.loads(MANIFEST.read_text())
+    return json.loads(MANIFEST.read_text(encoding="utf-8"))
 
 
 #: Never delivered to the marketplace. ``marketplace-entry.json`` is a gelpy-side aid (the
@@ -92,11 +92,11 @@ def _marketplace_json(marketplace: Path) -> Path:
 
 def _upsert_entry(marketplace_json: Path, slug: str, write: bool) -> str:
     """Insert or update this plugin's entry. Returns a description of what changed."""
-    data = json.loads(marketplace_json.read_text())
+    data = json.loads(marketplace_json.read_text(encoding="utf-8"))
     plugins = data.setdefault("plugins", [])
     manifest = _load_manifest()
 
-    entry = json.loads(ENTRY_SNIPPET.read_text())["vendored"]
+    entry = json.loads(ENTRY_SNIPPET.read_text(encoding="utf-8"))["vendored"]
     entry = {k: v for k, v in entry.items() if not k.startswith("_")}
     entry["name"] = manifest["name"]
     entry["description"] = manifest["description"]
@@ -114,7 +114,7 @@ def _upsert_entry(marketplace_json: Path, slug: str, write: bool) -> str:
         action = "appended a new marketplace.json entry"
 
     if write:
-        marketplace_json.write_text(json.dumps(data, indent=2) + "\n")
+        marketplace_json.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return action
 
 

@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 
 from ..utils.units import cm_to_inch
+from ._figure import save_figure
 
 
 def _stripe_overlay(shape: tuple[int, int], stripes: list[tuple[int, int]]) -> np.ndarray:
@@ -28,9 +29,6 @@ def render_background_diagnostic(
 ) -> Path:
     """Top: image with the fit stripes highlighted. Bottom: original/background/corrected
     column-mean profiles across a few vertical slices, to eyeball the correction."""
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
     corrected = image - background_plane
     corrected[corrected < 0] = 0
     h, w = image.shape
@@ -58,9 +56,7 @@ def render_background_diagnostic(
             ax.legend(fontsize=6)
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=300)
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path, dpi=300)
 
 
 def render_background_surface(
@@ -77,9 +73,6 @@ def render_background_surface(
     mean the fit correctly ignored them. Bottom: original/background/corrected column-mean
     profiles across a few vertical slices, to eyeball the correction.
     """
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
     h, w = image.shape
     slice_indices = np.linspace(0, w, 4).astype(int)
     fig = plt.figure(figsize=(cm_to_inch(18), cm_to_inch(16)))
@@ -120,6 +113,4 @@ def render_background_surface(
             ax.legend(fontsize=6)
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=300)
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path, dpi=300)

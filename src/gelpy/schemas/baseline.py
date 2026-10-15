@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .common import CanonicalModel
 
@@ -26,6 +26,9 @@ class BaselineConfig(CanonicalModel):
     34.4%, ``asls`` 58.5%. arPLS/AsLS are available for gels with genuinely wiggly
     (non-polynomial) backgrounds, at that cost.
     """
+
+    # a request carries this model into fit_config.json: a number must be finite (see RequestModel)
+    model_config = ConfigDict(allow_inf_nan=False)
 
     method: BaselineMethod = Field(default="poly", description="Baseline estimator.")
     lam: float = Field(

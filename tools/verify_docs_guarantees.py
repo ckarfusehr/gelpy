@@ -74,8 +74,8 @@ PROBES = [
             "while the docs kept using it. The generated reference must go stale immediately."
         ),
         file=REPO / "src/gelpy/cli/app.py",
-        find='    auto_escalate: bool = typer.Option(False, "--auto-escalate", help="Climb tiers on low confidence."),\n    plot: bool = typer.Option(False),\n    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),\n):\n    """Run a full fit pass over a lane selection (no manual peak-detection tuning needed)."""',
-        replace='    plot: bool = typer.Option(False),\n    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),\n):\n    """Run a full fit pass over a lane selection (no manual peak-detection tuning needed)."""\n    auto_escalate = False',
+        find='    auto_escalate: bool = typer.Option(False, "--auto-escalate", help="Climb tiers on low confidence."),\n    plot: bool = typer.Option(False),\n    allow_raw: bool = typer.Option(\n        False, "--allow-raw",\n        help="Measure the raw image although no background removal is configured "\n        "(refused otherwise: background_required).",\n    ),\n    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),\n):\n    """Run a full fit pass over a lane selection (no manual peak-detection tuning needed)."""',
+        replace='    plot: bool = typer.Option(False),\n    allow_raw: bool = typer.Option(\n        False, "--allow-raw",\n        help="Measure the raw image although no background removal is configured "\n        "(refused otherwise: background_required).",\n    ),\n    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),\n):\n    """Run a full fit pass over a lane selection (no manual peak-detection tuning needed)."""\n    auto_escalate = False',
         expect_failures=[
             "tests/docs/test_reference_is_current.py::test_generated_file_is_current[cli.md]",
         ],
@@ -127,6 +127,7 @@ def run_test(node_id: str) -> tuple[bool, str]:
         cwd=REPO,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=1800,
     )
     return result.returncode == 0, (result.stdout + result.stderr)[-600:]
@@ -134,7 +135,7 @@ def run_test(node_id: str) -> tuple[bool, str]:
 
 def check_clean_tree() -> None:
     result = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=REPO, capture_output=True, text=True
+        ["git", "status", "--porcelain"], cwd=REPO, capture_output=True, text=True, encoding="utf-8"
     )
     if result.stdout.strip():
         print(
@@ -160,10 +161,10 @@ def main() -> int:
         print(f"[{probe.name}]")
         print(f"  {probe.why}")
         created = not probe.file.exists()
-        original = None if created else probe.file.read_text()
+        original = None if created else probe.file.read_text(encoding="utf-8")
         try:
             if created:
-                probe.file.write_text(probe.replace)
+                probe.file.write_text(probe.replace, encoding="utf-8")
             else:
                 if probe.find not in original:
                     failures.append(
@@ -172,7 +173,7 @@ def main() -> int:
                     )
                     print("  SKIPPED: anchor text not found (the code moved; update the probe)\n")
                     continue
-                probe.file.write_text(original.replace(probe.find, probe.replace, 1))
+                probe.file.write_text(original.replace(probe.find, probe.replace, 1), encoding="utf-8")
 
             for node_id in probe.expect_failures:
                 passed, tail = run_test(node_id)
@@ -188,7 +189,7 @@ def main() -> int:
             if created:
                 probe.file.unlink(missing_ok=True)
             elif original is not None:
-                probe.file.write_text(original)
+                probe.file.write_text(original, encoding="utf-8")
 
         # The reference is regenerated from the code, so a code probe leaves it stale.
         subprocess.run([PYTHON, "tools/docs.py", "build"], cwd=REPO, capture_output=True)
@@ -198,7 +199,7 @@ def main() -> int:
             break
 
     check = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=REPO, capture_output=True, text=True
+        ["git", "status", "--porcelain"], cwd=REPO, capture_output=True, text=True, encoding="utf-8"
     )
     if check.stdout.strip():
         failures.append(

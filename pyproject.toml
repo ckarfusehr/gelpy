@@ -17,35 +17,44 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
+# numpy 2 is required (gelpy calls np.trapezoid). The packages with compiled code built against numpy
+# are floored at the oldest release that has wheels for it: a lower floor would let pip keep an
+# installed copy that fails next to numpy 2. tests/test_packaging.py pins these minima.
 dependencies = [
-    "numpy>=1.24.3",
-    "scipy>=1.10.1",
-    "scikit-image>=0.21.0",
-    "scikit-learn>=1.2.2",
-    "matplotlib>=3.7.1",
+    "numpy>=2.0",
+    "scipy>=1.13.0",
+    "scikit-image>=0.23.1",
+    "pillow>=9.1",
+    "tifffile>=2024.4.24",
+    "scikit-learn>=1.4.2",
+    "matplotlib>=3.8.4",
     "pydantic>=2.9",
-    "typer>=0.12",
+    "typer>=0.19.0",
 ]
 
 [project.optional-dependencies]
 # pandas/seaborn are not needed by the core pipeline (downstream users bring their
 # own); they belong to the optional notebook-scaffolding workflow.
 notebook = [
-    "pandas>=2.0.2",
+    "pandas>=2.2.2",
     "seaborn>=0.12.2",
     "ipykernel>=6.19.2",
 ]
 # Everything needed to run the test suite and the documentation checks.
 dev = [
     "pytest>=8.0",
-    "pandas>=2.0.2",
+    "pandas>=2.2.2",
     "nbclient>=0.9",
     "nbformat>=5.9",
     "mkdocs-material>=9.5",
     # Only the doc-tooling tests use it directly (front-matter validity); mkdocs-material
     # already pulls it in, but the dependency is declared so the test never silently skips.
     "pyyaml>=6.0",
+    # tests/test_packaging.py reads pyproject.toml; Python 3.10 has no tomllib.
+    "tomli>=2.0; python_version < '3.11'",
 ]
+# The MCP server (`gelpy mcp`), on the official Python SDK.
+mcp = ["mcp>=2.2,<3"]
 
 [project.scripts]
 gelpy = "gelpy.cli.app:main"

@@ -52,6 +52,7 @@ conda create -n gelpy python=3.11
 conda activate gelpy
 pip install -e .            # from a checkout
 pip install -e ".[dev]"     # plus the test and documentation suites
+pip install -e ".[mcp]"     # plus the MCP server (gelpy mcp)
 ```
 
 This installs a `gelpy` command (also `python -m gelpy`). Check it:
@@ -69,7 +70,7 @@ Two ways, and they do the same thing.
 lane overlay, inspects each fit, and tells you which lanes it would not trust:
 
 ```text
-Analyse gels/my_gel.tif. It is a 20-lane agarose gel; the sample
+Analyze gels/my_gel.tif. It is a 20-lane agarose gel; the sample
 sheet is in gels/labels.txt. I want the per-lane band fractions and I want to
 know which lanes you would not trust.
 ```
@@ -93,7 +94,14 @@ gelpy results show "$RUN" --format table
 ```
 
 Every command takes the run directory explicitly, so there is no hidden "current run" and your
-shell history is a complete record of the analysis.
+shell history is a complete record of the analysis. `init` stops with `run_exists` on a folder
+that already holds a run: repeat it with `--force` to replace that run, or pick a new folder.
+
+Each step above is also a tool that reads one JSON object and writes one (`gelpy tool list --json`
+describes them, `gelpy tool call NAME` runs one). `gelpy mcp` serves the same tools to an MCP
+client (`pip install "gelpy[mcp]"`), and `gelpy report html "$RUN"` writes the run as a static web
+page. [docs/guide/driving-from-an-agent.md](docs/guide/driving-from-an-agent.md) has the tool
+contract and [docs/guide/html-report.md](docs/guide/html-report.md) the report.
 
 ## Documentation
 
@@ -120,7 +128,7 @@ rewrite, the documentation was wrong in 38 verified places and nobody noticed fo
 The `gelpy-analyze` skill lives in [plugin/](plugin/) and carries the judgment part: verify
 the overlay, don't trust `status: "ok"`, escalate a low-confidence lane. The simplest install
 needs no marketplace: copy `plugin/skills/gelpy-analyze/` into `~/.claude/skills/` (every
-project) or into `.claude/skills/` of the project you analyse gels in. To update, delete the
+project) or into `.claude/skills/` of the project you analyze gels in. To update, delete the
 old copy before copying the new one; copying over it keeps files the new version dropped. To
 serve the skill from a Claude Code plugin marketplace instead,
 [plugin/README.md](plugin/README.md) has both arrangements and the command that vendors it.

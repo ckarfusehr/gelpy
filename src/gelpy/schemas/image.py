@@ -18,7 +18,10 @@ class ImageRef(CanonicalModel):
     ``(path, size, mtime)`` triple lets the pipeline skip re-hashing the file bytes.
     """
 
-    path: str = Field(description="Path to the source image as referenced by the run.")
+    path: str = Field(
+        description="Path to the source image: relative to the run folder where possible "
+        "(`RunPaths.store_path`), absolute otherwise."
+    )
     sha256: str = Field(description="SHA-256 of the raw file bytes.")
     size: int = Field(ge=0, description="File size in bytes.")
     mtime: float = Field(description="File modification time (epoch seconds).")
@@ -61,3 +64,10 @@ class ImageMeta(CanonicalModel):
         default="ok", description="Detector confidence; 'low' raises an ignorable warning."
     )
     polarity_reason: str = Field(default="", description="Human reason when confidence is 'low'.")
+    reader_warnings: list[str] = Field(
+        default_factory=list,
+        description="What tifffile logged (warnings and errors) while it read the source image. A "
+        "stack cut off in the middle is read with its missing pages as zeros and reported only "
+        "there. At most five different messages, each without the file's folders, and a line "
+        "that counts the rest; a record, not a cache key.",
+    )

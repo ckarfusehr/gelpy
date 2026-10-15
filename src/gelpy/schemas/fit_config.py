@@ -11,10 +11,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .baseline import BaselineConfig
 from .common import CanonicalModel
+from .lanes import MAX_LANES
 from .profiles import LineProfileConfig
 
 #: Default per-component shape menu the fitter is allowed to select from.
@@ -23,6 +24,9 @@ DEFAULT_SHAPES: tuple[str, ...] = ("gaussian", "emg", "bi_gaussian", "pseudo_voi
 
 class PriorConfig(CanonicalModel):
     """Soft priors + stopping controls shared by every fit strategy."""
+
+    # a request carries this model into fit_config.json: a number must be finite (see RequestModel)
+    model_config = ConfigDict(allow_inf_nan=False)
 
     width_prior_strength: float = Field(
         default=0.5,
@@ -91,5 +95,7 @@ class FitConfigStore(CanonicalModel):
     """Durable per-lane fit configuration, persisted as ``fit_config.json`` (sparse)."""
 
     lanes: dict[int, PerLaneFitConfig] = Field(
-        default_factory=dict, description="Per-lane fit intent, keyed by lane index."
+        default_factory=dict,
+        max_length=MAX_LANES,
+        description="Per-lane fit intent, keyed by lane index (at most 1000 lanes).",
     )

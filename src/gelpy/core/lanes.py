@@ -11,7 +11,7 @@ from scipy.signal import find_peaks
 
 from ..schemas.lanes import LaneLayout, LaneSelector
 from ._registry import Registry
-from .errors import LaneSelectionError
+from .errors import LaneSelectionError, shown
 
 # Fraction of the detected lane pitch used as the default per-lane profile-strip width.
 _PROFILE_WIDTH_FRACTION = 0.7
@@ -779,14 +779,14 @@ def resolve_lane_selector(selector: LaneSelector, layout: LaneLayout) -> list[in
 
     if not indices:
         raise LaneSelectionError(
-            f"Lane selector {selector!r} matched no lanes.", available=labels
+            f"Lane selector {shown(selector)} matched no lanes.", available=labels
         )
     return sorted(set(indices))
 
 
 def _resolve_term(term: int | str, labels: list[str], n: int) -> list[int]:
     if isinstance(term, bool):  # guard: bool is an int subclass
-        raise LaneSelectionError(f"Invalid lane term {term!r}.", available=labels)
+        raise LaneSelectionError(f"Invalid lane term {shown(term)}.", available=labels)
     if isinstance(term, int):
         if not (0 <= term < n):
             raise LaneSelectionError(
@@ -796,7 +796,14 @@ def _resolve_term(term: int | str, labels: list[str], n: int) -> list[int]:
     if isinstance(term, str):
         if term.startswith("re:"):
             pattern = term[3:]
-            return [i for i, label in enumerate(labels) if re.search(pattern, label)]
+            try:
+                regex = re.compile(pattern)
+            except re.error as exc:
+                raise LaneSelectionError(
+                    f"Invalid regular expression {shown(pattern)} in a lane selector ({exc}).",
+                    available=labels,
+                ) from None
+            return [i for i, label in enumerate(labels) if regex.search(label)]
         literal = term[6:] if term.startswith("label:") else term
         return [i for i, label in enumerate(labels) if label == literal]
-    raise LaneSelectionError(f"Invalid lane term {term!r}.", available=labels)
+    raise LaneSelectionError(f"Invalid lane term {shown(term)}.", available=labels)

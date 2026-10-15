@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
-import tomllib
 from pathlib import Path
 
 import pytest
 
 import gelpy
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -100,3 +104,48 @@ def test_marketplace_entry_matches_the_plugin_manifest():
     for form in ("vendored", "referenced"):
         assert entry[form]["name"] == manifest["name"]
         assert entry[form]["description"] == manifest["description"]
+
+
+def test_numpy_floor_covers_the_api_in_use():
+    """gelpy calls np.trapezoid, which exists from numpy 2.0 on."""
+    dependencies = [d.replace(" ", "") for d in _pyproject()["project"]["dependencies"]]
+    assert "numpy>=2.0" in dependencies
+
+
+#: The oldest release of each package with wheels built for numpy 2, which gelpy requires. A floor
+#: below it lets pip keep an installed copy that fails to import, or fails in its compiled code,
+#: next to numpy 2. pandas is named only by the extras.
+NUMPY_2_FLOORS = {
+    "numpy": "2.0",
+    "scipy": "1.13.0",
+    "scikit-image": "0.23.1",
+    "tifffile": "2024.4.24",
+    "scikit-learn": "1.4.2",
+    "matplotlib": "3.8.4",
+    "pandas": "2.2.2",
+}
+
+
+def _version(text):
+    return tuple(int(part) for part in text.split("."))
+
+
+def _declared_floors():
+    """Every ``name>=version`` the project declares, runtime dependencies and extras, as
+    (name, version) pairs."""
+    project = _pyproject()["project"]
+    requirements = [*project["dependencies"], *sum(project["optional-dependencies"].values(), [])]
+    for requirement in requirements:
+        name, _, floor = requirement.replace(" ", "").partition(">=")
+        yield name, floor
+
+
+@pytest.mark.parametrize("name", NUMPY_2_FLOORS)
+def test_every_declared_floor_runs_with_numpy_2(name):
+    declared = [floor for declared_name, floor in _declared_floors() if declared_name == name]
+    assert declared, f"{name} is not declared"
+    for floor in declared:
+        assert floor and _version(floor) >= _version(NUMPY_2_FLOORS[name]), (
+            f"{name}>={floor} allows a release built for numpy 1; the oldest that runs with "
+            f"numpy 2 is {NUMPY_2_FLOORS[name]}"
+        )

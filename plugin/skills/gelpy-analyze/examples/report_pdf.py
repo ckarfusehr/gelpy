@@ -58,8 +58,8 @@ STANDARD = [
     ("linear.png", "Linear contrast (gelpy image show --kind linear), lane labels on top."),
     ("non_linear.png", "Gamma (non-linear) contrast of the same image; enhances faint features."),
     ("corrected.png", "Background-corrected image, gamma contrast (gelpy image show --kind corrected)."),
-    ("lane_detect.png", "Lane-detection QC (gelpy lanes detect): red lines = lane centres; bottom panel = "
-                        "column projection of the image with the detected peaks."),
+    ("non_linear_lanes.png", "Lane QC (gelpy image show --kind non_linear --lanes): the lanes as the run "
+                             "holds them, red = the strip each profile is measured on."),
     ("background_diagnostic.png", "Background-removal QC (gelpy background show): fitted background and "
                                   "lane profiles before / after subtraction."),
 ]
@@ -115,13 +115,35 @@ def span_list(ranges):
     return ", ".join(f"{a}-{b}" for a, b in ranges)
 
 
-def saturation(rec):
+def recorded_path(run, stored):
+    """Where a path that the run folder recorded points.
+
+    gelpy records paths relative to the run folder where it can, so they resolve against the run
+    folder, whatever the working directory is. A relative path that exists only from the working
+    directory is a run folder written by gelpy 1.0, which recorded paths relative to the directory
+    it was made in."""
+    if os.path.isabs(stored):
+        return stored
+    inside = os.path.join(run, stored)
+    return inside if os.path.exists(inside) or not os.path.exists(stored) else stored
+
+
+def render_lane_view(run):
+    """Draw the lanes as the run holds them over the clean image, so the QC figure shows the measured
+    strips: ``render/lane_detect.png`` shows the last detection, which hand-set lanes differ from."""
+    r = subprocess.run([sys.executable, "-m", "gelpy", "image", "show", run, "--kind", "non_linear", "--lanes"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    if r.returncode:
+        sys.exit(f"`gelpy image show {run} --kind non_linear --lanes` failed:\n{r.stderr.strip()}")
+
+
+def saturation(rec, run):
     """Pixels at the integer dtype ceiling of the source image, located by lane."""
     from gelpy.core.image_io import decode_image
 
-    src = rec["source_image"]["path"]
+    src = recorded_path(run, rec["source_image"]["path"])
     if not os.path.exists(src):
-        return "not checked (source image not found from the current directory)"
+        return f"not checked (source image {os.path.basename(src)} not found where the run records it)"
     raw, _ = decode_image(src, page=rec["image"].get("page", 0))
     if not np.issubdtype(raw.dtype, np.integer):
         return f"not checked ({raw.dtype} image)"
@@ -147,16 +169,19 @@ def saturation(rec):
 def load_profiles(run, lanes):
     """Current full-length profile per lane, from gelpy's profile cache."""
     # Refresh first: manifest.json keeps a stale entry after a recipe edit until the next extract.
+    # Without --allow-raw on purpose: a run without background removal is refused (gelpy answers
+    # background_required) and the script stops with gelpy's own error, which names the next step;
+    # it never measures the raw image unasked.
     r = subprocess.run([sys.executable, "-m", "gelpy", "profiles", "extract", run, "--lane", "all"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8")
     if r.returncode:
         sys.exit(f"`gelpy profiles extract {run} --lane all` failed:\n{r.stderr.strip()}")
-    with open(os.path.join(run, "manifest.json")) as f:
+    with open(os.path.join(run, "manifest.json"), encoding="utf-8") as f:
         stages = json.load(f)["stages"]
     out = {}
     for i in lanes:
         h = stages[f"profile:lane={i}"]["hash"]
-        with open(os.path.join(run, "cache", "profiles", f"lane_{i:03d}__{h}.json")) as f:
+        with open(os.path.join(run, "cache", "profiles", f"lane_{i:03d}__{h}.json"), encoding="utf-8") as f:
             out[i] = np.asarray(json.load(f), dtype=float)
     return out
 
@@ -199,7 +224,7 @@ def main():
             regions.append((name, int(a), int(b)))
         except ValueError:
             sys.exit(f"--region {item!r}: expected NAME=Y0-Y1, e.g. fast=600-900")
-    with open(os.path.join(run, "recipe.json")) as f:
+    with open(os.path.join(run, "recipe.json"), encoding="utf-8") as f:
         rec = json.load(f)
     lanes = rec["lanes"]["lanes"]
     src, meta, bg = rec["source_image"], rec["image"], rec.get("background")
@@ -207,41 +232,43 @@ def main():
     pitch = float(np.median(np.diff(centers))) if len(centers) > 1 else float("nan")
     fits = None
     if fits_json:
-        with open(fits_json) as f:
+        with open(fits_json, encoding="utf-8") as f:
             fits = json.load(f)
     observations = list(OBSERVATIONS)
     if args.observations:
-        with open(args.observations) as f:
+        with open(args.observations, encoding="utf-8") as f:
             observations += [line.strip() for line in f if line.strip()]
 
     s = [Paragraph(escape(args.title), H1)]
     page = f", page {meta['page']} of {meta['source_pages']}" if meta.get("source_pages", 1) > 1 else ""
     s.append(Paragraph(
         f"Image: <i>{escape(os.path.basename(src['path']))}</i> ({src['width']} x {src['height']} px, "
-        f"{meta.get('original_dtype') or src['dtype']}{page}). Saturation: {escape(saturation(rec))}. "
+        f"{meta.get('original_dtype') or src['dtype']}{page}). Saturation: {escape(saturation(rec, run))}. "
         f"{len(lanes)} lanes; gelpy run folder <i>{escape(os.path.basename(os.path.normpath(run)))}</i>.", P))
     s.append(Spacer(1, 2 * mm))
-    s.append(table([["lane", "label", "x centre px"]]
+    s.append(table([["lane", "label", "x center px"]]
                    + [[lane["index"], cell(lane["label"]), f"{lane['x_center_px']:.0f}"] for lane in lanes],
                    [12 * mm, 90 * mm, 20 * mm], font=7.5))
 
     s.append(Paragraph("Processing", H2))
-    proc = [f"Lanes: {len(lanes)} lane centres from recipe.json, median pitch {pitch:.1f} px; "
+    proc = [f"Lanes: {len(lanes)} lane centers from recipe.json, median pitch {pitch:.1f} px; "
             f"profile width {rec['lanes']['profile_width_px']} px."]
     if bg:
         params = ", ".join(f"{k}={v}" for k, v in sorted(bg.get("params", {}).items()))
         proc.append(f"Background: <i>gelpy background remove --model {escape(bg['model'])}</i>"
                     f"{' (' + escape(params) + ')' if params else ''}, subtracted before any profile.")
     else:
-        proc.append("Background: none; profiles come from the raw image.")
-    proc.append(f"Profiles: mean over the lane width of the {'background-corrected' if bg else 'raw'} "
-                "image, per y pixel.")
+        proc.append("Background: none. gelpy refuses profiles and fits without it unless --allow-raw is "
+                    "given; any profile or fit of this run is of the raw image, on purpose.")
+    proc.append("Profiles: mean over the lane width of the "
+                + ("background-corrected image" if bg else "raw image (gelpy takes it only with --allow-raw)")
+                + ", per y pixel.")
     if fits:
         middle = sorted({r["group"] for r in fits if r["middle"]})
         masked = [f"lane {r['lane_index']}: {span_list(r['masked_ranges'])} px" for r in fits if r["masked_ranges"]]
         proc += [
             "Component fit (constrained_component_fit.py, least squares with soft-L1 loss): well = "
-            "exponentially modified Gaussian (EMG); smear = generalised Gaussian; "
+            "exponentially modified Gaussian (EMG); smear = generalized Gaussian; "
             + (f"middle band = Gaussian (groups {escape(', '.join(middle))}); " if middle else "")
             + "leading band = EMG with its tail toward the well; fastest peak = bi-Gaussian; "
             "plus a constant offset.",
@@ -250,7 +277,7 @@ def main():
             f"{max(r['y_end'] for r in fits)} px.",
             "Masked (dust and hand-confirmed specks): " + ("; ".join(masked) if masked else "none") + ".",
             "Fraction = component area / sum of the lane's component areas; area in corrected-intensity "
-            "x px. Leading-band migration = mode of the band component minus the fitted well-peak centre.",
+            "x px. Leading-band migration = mode of the band component minus the fitted well-peak center.",
         ]
     if regions:
         sig = args.signal_range
@@ -267,6 +294,7 @@ def main():
             shown.add(h)
             s.append(fig(path, caption, **kw))
 
+    render_lane_view(run)
     render = os.path.join(run, "render")
     s.append(PageBreak())
     s.append(Paragraph("Gel images", H2))

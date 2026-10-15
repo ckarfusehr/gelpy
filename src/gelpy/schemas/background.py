@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .common import CanonicalModel
 
@@ -33,6 +33,9 @@ class RobustPlaneParams(CanonicalModel):
 
     Zero-config is the intended path — every field has a sensible default.
     """
+
+    # a request carries these parameters into recipe.json: a number must be finite (see RequestModel)
+    model_config = ConfigDict(allow_inf_nan=False)
 
     order: int = Field(
         default=1,
@@ -66,8 +69,9 @@ class RobustPlaneParams(CanonicalModel):
     subsample: int = Field(
         default=1,
         ge=1,
-        description="Fit the surface on every n-th pixel (lossless for a smooth surface); "
-        "evaluated on the full grid. Speed escape hatch for very large images.",
+        description="Fit the surface on every n-th pixel (lossless for a smooth surface); it is "
+        "evaluated on the full grid without full-resolution coordinate grids. Speed and memory "
+        "escape hatch for very large images.",
     )
     contiguity: float = Field(
         default=0.0,

@@ -7,11 +7,12 @@ from string import Template
 
 from ..schemas.recipe import Recipe
 from ..schemas.results import AnalysisResult
+from ..utils.atomic import atomic_write
 
 _TEMPLATE = Template(
     """# gelpy analysis report
 
-**Source image:** `$image_path`
+**Source image:** `$image_name` (sha256 `$sha256`)
 **Dimensions:** ${width} x ${height} px
 **Lanes:** $n_lanes (profile width ${profile_width} px)
 **Background:** $background
@@ -77,11 +78,10 @@ def _lane_list(result: AnalysisResult) -> str:
 
 
 def render_report(recipe: Recipe, result: AnalysisResult, out_path: str | Path) -> Path:
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     background = recipe.background.model if recipe.background else "none"
     text = _TEMPLATE.substitute(
-        image_path=recipe.source_image.path,
+        image_name=Path(recipe.source_image.path).name,
+        sha256=recipe.source_image.sha256,
         width=recipe.source_image.width,
         height=recipe.source_image.height,
         n_lanes=len(recipe.lanes.lanes),
@@ -90,5 +90,5 @@ def render_report(recipe: Recipe, result: AnalysisResult, out_path: str | Path) 
         results_table=_results_table(result),
         lane_list=_lane_list(result),
     )
-    out_path.write_text(text)
-    return out_path
+    atomic_write(out_path, text.encode("utf-8"))
+    return Path(out_path)

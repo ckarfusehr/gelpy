@@ -254,7 +254,7 @@ Three specific ways the flag misleads:
 
 - **`--auto-escalate` searches for a flag, not for a better fit.** It climbs
   `grow_select -> sparse_seed -> bayesian` and stops at the first tier whose confidence is `ok`
-  (`src/gelpy/runfolder/commands.py:355-366`). On `mixed_five` seed 7 it does worse than that:
+  (`src/gelpy/runfolder/commands.py:486-497`). On `mixed_five` seed 7 it does worse than that:
   `grow_select` gives area error 0.211 and `low`, `sparse_seed` gives **0.148** and `low`,
   `bayesian` gives 0.209 and `ok`. The ladder steps *past* the best of the three because that
   tier is flagged, and settles on one 41% worse — but flagged `ok`. Escalate if you like, then
@@ -276,33 +276,23 @@ Three specific ways the flag misleads:
 
 Designed for, absent from the code — `gelpy --help` is the authority:
 
-- **MCP server.** `runfolder/commands.py` is `f(request) -> result`, so a wrapper is thin, but
-  no server exists.
 - **`replay`.** `log/history.jsonl` is written and appended to; nothing reads it back.
-- **Run-folder locking.** No lock file. `manifest.json` and `fit_config.json` are whole-file
-  atomic writes of a read-modify-write cycle, so two gelpy processes on one run folder will not
-  corrupt a file — they lose the earlier process's entries. The manifest is regenerable;
-  `fit_config.json` is your per-lane intent. Run one process per run folder.
-- **MW / ladder calibration**, **`tune` / `refit-all`** auto-tuning, **HTML report**,
-  **notebook scaffolding**.
+- **MW / ladder calibration**, **`tune` / `refit-all`** auto-tuning, **notebook scaffolding**.
 
 ## Sharp edges
 
-- `gelpy fit refit-lane` reports `"files": {"plot": "render/fits/lane_NNN.png"}` even when no
-  plot was rendered (`--no-plot` is the default): the path is advertised unconditionally
-  (`src/gelpy/runfolder/commands.py:499-505`) and `render/fits/` stays empty. Pass `--plot` if
-  you want the file.
-- `gelpy lanes set` and `gelpy lanes detect` disagree on strip width. `detect` uses
-  `0.7 * pitch`; `set` without `--width` falls back to `image_width / (N * 2.5)`
-  (`guess_profile_width`, `src/gelpy/core/lanes.py:744-752`). On `folding_screen` that is 159 px
-  against 93 px — 0.70x pitch against 0.41x — i.e. two different measurements of one gel. Pass
-  `--width` if you switch to manual placement mid-analysis.
+- `gelpy init` and `gelpy lanes detect` disagree on strip width. `detect` uses `0.7 * pitch`;
+  `init` without `--width` records `image_width / (N * 2.5)` (`guess_profile_width`,
+  `src/gelpy/core/lanes.py:744-752`). On `folding_screen` that is 159 px against 93 px -- 0.70x
+  pitch against 0.41x -- i.e. two different measurements of one gel. `lanes set` without
+  `--width` keeps the width the recipe holds, whichever of the two wrote it, so pass `--width`
+  if you place lanes by hand and want the width to be neither.
 - `--format text` prints a pydantic result as single-line JSON, not prose (`_terse` in
   `src/gelpy/cli/_io.py`), and it is not uniform across commands: `results show` ignores `text`
   and prints indented JSON (its own `--format` help lists only `json|csv|table`), while the
-  commands that return a plain dict — `lanes detect`, `background show`, `image show` — fall
+  commands that return a plain dict — `background show`, `models list` — fall
   through to `emit`'s `str(value)` branch and print a single-quoted Python repr that is not
-  valid JSON at all (`{'centers': [149.305...`). For a table
+  valid JSON at all (`{'names': ['bayesian', 'grow_select'...`). For a table
   use `gelpy results show --format table`. And `gelpy status` reports each lane's `status` but
   not its fit `confidence`, so a run can read 20-for-20 `ok` there with several low-confidence
   lanes. Read `results.json` for flags.
@@ -311,6 +301,33 @@ Designed for, absent from the code — `gelpy --help` is the authority:
   record of which order produced a fit — [concepts.md](concepts.md).
 - The verified way to drive gelpy from an agent is Claude Code with a shell on the machine
   holding the images; other agent environments are untested — [driving-from-an-agent.md](driving-from-an-agent.md).
+- **A deflate-compressed TIFF can inflate past what its header declares, and nothing checks it.**
+  The pixel and page caps count what the header declares, before any pixel is decoded
+  ([image-input.md](image-input.md#size-limits)). The inflated size of a compressed strip is in no
+  header, and no check for it costs less than decoding the strip. Measured with tifffile 2026.6.1
+  (no `imagecodecs`): a 195 KB file that declares one 10 x 10 strip whose deflate stream inflates
+  to 200 MB grew the process by about 200 MB while it was read, and came back as a 10 x 10 image.
+  Deflate expands up to about 1000 to 1, so one file can cost about 1000 times its size, not what
+  the cap allows. For files you do not trust, run gelpy in a process with a memory limit
+  (`ulimit -v`, a container) and limit the size of the files you accept. To reproduce, write a
+  classic TIFF whose strip is `zlib.compress(bytes(200_000_000))` under a 10 x 10 header and call
+  `gelpy.core.image_io.decode_image` on it, watching the peak resident size.
+
+- **Two warnings on stderr that are not about your data.** Neither stops a command, and neither
+  changes a result.
+  - *Glyph missing from the font.* A lane label with characters that matplotlib's default font
+    (DejaVu Sans) lacks, such as Chinese, Japanese or Korean, prints a matplotlib `UserWarning`
+    (`Glyph 32454 (\N{CJK UNIFIED IDEOGRAPH-7EC6}) missing from font(s) DejaVu Sans`) from every
+    command that draws it, and the figure shows an empty box in its place. The labels in
+    `recipe.json`, `results.csv` and the HTML report are intact. gelpy does not pick a fallback
+    font; set one for matplotlib (`font.family` in a `matplotlibrc`) if the figures must show
+    them.
+  - *Accelerate and `matmul`.* numpy 2.0 to 2.2 on arm64 macOS, built against Apple's Accelerate,
+    can print `RuntimeWarning: divide by zero encountered in matmul` (also `overflow` and
+    `invalid value`) while a fit runs, for products whose result is finite. The cause is in those
+    numpy builds, not in the data, and numpy 2.3 and later, which use a newer Accelerate, do not
+    show it (not re-measured here). The declared
+    floor, `numpy>=2.0`, includes the affected releases.
 
 ## Re-measuring after a change
 

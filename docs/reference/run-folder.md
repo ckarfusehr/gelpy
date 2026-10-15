@@ -13,6 +13,7 @@ can read the results without Python, and re-running any command reproduces them.
   results.csv          # generated
   results.json         # generated
   report.md            # generated
+  .gelpy.lock          # advisory lock, held while a command writes
   cache/
     image/<image_hash>.npy
     background/<background_hash>.npz
@@ -21,6 +22,9 @@ can read the results without Python, and re-running any command reproduces them.
   render/
     *.png
     fits/lane_NNN.png
+    fits/index.json      # which fit and label each plot shows
+  report/                # gelpy report html: index.html, report.css, theme.css, img/
+    .gelpy-report.json   # marks the folder as the report's and lists the files it wrote
   log/
     history.jsonl        # append-only command log
 ```
@@ -36,6 +40,9 @@ can read the results without Python, and re-running any command reproduces them.
 | `results.json` | generated -- the same content as the full structured result. |
 | `report.md` | generated -- a human-readable markdown summary. |
 | `log/history.jsonl` | append-only log of every command run against this folder. |
+| `.gelpy.lock` | the advisory lock file: every command that writes this folder holds it, so a second writer is refused with `run_locked`. Released when the holder exits; never needs deleting. |
+| `render/fits/index.json` | generated -- which fit (by hash), and under which lane label, each `render/fits/lane_NNN.png` shows; `report html` draws a plot again only when this differs. |
+| `report/` | generated -- the static HTML report (`gelpy report html`): `index.html`, `report.css`, `theme.css` when a stylesheet was passed, `img/`, and `.gelpy-report.json`, which marks the folder as the report's. A rebuild replaces, and `init --force` removes, only the files that marker lists; a `report/` without it is left alone. |
 
 
 ## Cache layout

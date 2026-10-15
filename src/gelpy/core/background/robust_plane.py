@@ -41,6 +41,26 @@ def polynomial_design(gx: np.ndarray, gy: np.ndarray, order: int) -> np.ndarray:
     return np.stack(cols, axis=1)
 
 
+def evaluate_surface(theta: np.ndarray, gx: np.ndarray, gy: np.ndarray, order: int) -> np.ndarray:
+    """The polynomial surface on the grid spanned by 1-D coordinates ``gx`` (columns) and
+    ``gy`` (rows): the terms of ``polynomial_design``, evaluated by broadcasting, so no
+    coordinate grid or design matrix is built."""
+    x = gx[None, :]
+    y = gy[:, None]
+    surface = np.full((gy.size, gx.size), theta[0], dtype=np.float64)
+    if order >= 1:
+        surface += theta[1] * x
+        surface += theta[2] * y
+    if order >= 2:
+        surface += theta[3] * (x * x)
+        # one full-size temporary, scaled in place: rounded exactly as the design column is
+        xy = x * y
+        xy *= theta[4]
+        surface += xy
+        surface += theta[5] * (y * y)
+    return surface
+
+
 def weighted_lstsq(design: np.ndarray, z: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """Solve the weighted normal equations ``(AᵀWA) θ = AᵀW z`` for the coefficients.
 
@@ -107,21 +127,26 @@ def fit_surface(image: np.ndarray, params: RobustPlaneParams):
 
     ``surface`` and ``weights`` are full-image arrays; ``weights`` is the final per-pixel
     background trust (recomputed on the full grid for the diagnostic even when the fit ran
-    on a subsampled grid).
+    on a subsampled grid). With ``subsample > 1`` the fit runs on the subsampled grid and the
+    surface is evaluated by broadcasting (``evaluate_surface``): no full-resolution coordinate
+    grids and no (pixels x terms) design matrix are built, so the full-resolution arrays are
+    the surface, its residual and the weights, besides the temporaries of computing them.
     """
     h, w = image.shape
-    gx_full, gy_full = np.meshgrid(np.linspace(-1.0, 1.0, w), np.linspace(-1.0, 1.0, h))
-    design_full = polynomial_design(gx_full, gy_full, params.order)
+    gx = np.linspace(-1.0, 1.0, w)
+    gy = np.linspace(-1.0, 1.0, h)
 
     s = params.subsample
     if s > 1:
-        gx_fit, gy_fit = gx_full[::s, ::s], gy_full[::s, ::s]
+        # Fit on every s-th pixel; nothing full-resolution is built for the fit.
+        gx_fit, gy_fit = np.meshgrid(gx[::s], gy[::s])
         fit_shape = gx_fit.shape
         design_fit = polynomial_design(gx_fit, gy_fit, params.order)
         z_fit = image[::s, ::s].ravel().astype(np.float64)
     else:
+        gx_full, gy_full = np.meshgrid(gx, gy)
         fit_shape = (h, w)
-        design_fit = design_full
+        design_fit = polynomial_design(gx_full, gy_full, params.order)
         z_fit = image.ravel().astype(np.float64)
 
     contiguity_px = params.contiguity / s if params.contiguity > 0 else 0.0
@@ -148,7 +173,10 @@ def fit_surface(image: np.ndarray, params: RobustPlaneParams):
         if contiguity_px > 0:
             weights = _smooth_weights(weights, fit_shape, contiguity_px)
 
-    surface = (design_full @ theta).reshape(h, w)
+    if s > 1:
+        surface = evaluate_surface(theta, gx, gy, params.order)
+    else:
+        surface = (design_fit @ theta).reshape(h, w)  # the default keeps its exact arithmetic
     full_residual = image - surface
     full_sigma = robust_sigma(full_residual.ravel())
     if params.weight_mode == "asymmetric":

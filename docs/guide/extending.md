@@ -73,7 +73,8 @@ gelpy models list --kind projection
 - **Layer direction is `schemas/` → `core/` → (`render/` + `runfolder/`) → `cli/`, never
   upward.** Nothing violates it today: no module under `core/` imports `runfolder`, `render` or
   `cli`; `runfolder/` imports no `render`, which is what keeps `runfolder/commands.py`
-  matplotlib-free and directly wrappable by an MCP server; `schemas/` imports nothing at module
+  matplotlib-free, so the command API (which the tool layer in `cli/tools.py` wraps) imports
+  without the plotting stack; `schemas/` imports nothing at module
   level but pydantic, typing and its own siblings (`AnalysisResult.to_dataframe` lazy-imports
   pandas inside the method, which is what keeps the package importable without it).
 - **matplotlib is imported under `render/` only.**
@@ -85,6 +86,11 @@ gelpy models list --kind projection
   results: `fit_hash` folds in the whole `FitConfig` dump, `background_hash` folds in your
   *validated* config-model dump. Randomness must come from `FitConfig.seed` (as
   `strategies/bayesian.py` does), or your strategy returns different answers under one key.
+- **The cache key carries the package version, not a hash of the code.** `image_hash` folds in
+  `gelpy.__version__` and every other hash chains off it, so a new version never reuses an old
+  cache. An edit to the code of an existing entry within one version keeps its key, and a run
+  folder that already holds its results reuses them: bump the version, or delete the run folder's
+  `cache/` (and `manifest.json` with it), after you change what an existing entry computes.
 
 ## A peak shape
 
@@ -338,9 +344,22 @@ cannot leak into the next one.
 
 ## Smoke-testing a new entry
 
-A wrong name is never a silent no-op: `fit run --method nope` exits 1 with
-`{"error": "Unknown fit-strategy model 'nope'.", "code": "registry", "detail": null,
-"available": [...]}`.
+A wrong name is never a silent no-op: `fit run --method nope` exits 1 with a `registry` error
+whose `detail` names the next step and whose `available` lists the registered names:
+
+```console
+{
+  "error": "Unknown fit-strategy model 'nope'.",
+  "code": "registry",
+  "detail": "Use one of the names in `available`.",
+  "available": [
+    "bayesian",
+    "grow_select",
+    "sparse_seed"
+  ]
+}
+```
+
 Beyond that, one lane exercises a shape, a strategy and a background model end to end —
 substitute your own names:
 

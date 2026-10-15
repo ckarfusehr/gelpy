@@ -9,10 +9,11 @@ summary.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from ..core.background import background_registry
-from ..core.errors import SourceImageChangedError
 from ..core.image_io import apply_image_meta
 from ..core.line_profiles import apply_slice, extract_line_profile, normalize_profile
 from ..schemas.fit_config import FitConfig
@@ -25,7 +26,7 @@ from . import stages
 from .cache import get_or_compute_json, get_or_compute_npy, get_or_compute_npz, write_json
 from .layout import RunPaths
 from .manifest import record_stage
-from .recipe_io import build_image_ref, source_unchanged
+from .recipe_io import build_image_ref, require_source, require_unchanged, source_unchanged
 from .stages import StageName, stage_key
 
 
@@ -51,17 +52,29 @@ class Pipeline:
 
     def _note_upstream_reused(self, lane: LaneDefinition) -> None:
         """Mark image/background/profile as reused when a downstream cache hit means
-        we never physically loaded them (they exist on disk and stay valid)."""
-        if self.paths.image_cache(stages.image_hash(self.recipe)).exists():
-            self._mark(stage_key(StageName.IMAGE), recomputed=False)
+        we never physically loaded them (they exist on disk and stay valid), and record
+        them in the manifest: the ledger follows the cache, so each reused stage names the
+        artifact the current recipe and gelpy version address, not an older one."""
+        image_hash = stages.image_hash(self.recipe)
+        image_path = self.paths.image_cache(image_hash)
+        if image_path.exists():
+            self._reuse(StageName.IMAGE, None, image_hash, image_path)
         if self.recipe.background is not None:
-            if self.paths.background_cache(stages.background_hash(self.recipe)).exists():
-                self._mark(stage_key(StageName.BACKGROUND), recomputed=False)
-        prof_path = self.paths.profile_cache(
-            lane.index, stages.profile_hash(self.recipe, lane)
-        )
-        if prof_path.exists():
-            self._mark(stage_key(StageName.PROFILE, lane.index), recomputed=False)
+            background_hash = stages.background_hash(self.recipe)
+            background_path = self.paths.background_cache(background_hash)
+            if background_path.exists():
+                self._reuse(StageName.BACKGROUND, None, background_hash, background_path)
+        profile_hash = stages.profile_hash(self.recipe, lane)
+        profile_path = self.paths.profile_cache(lane.index, profile_hash)
+        if profile_path.exists():
+            self._reuse(StageName.PROFILE, lane.index, profile_hash, profile_path)
+
+    def _reuse(
+        self, stage: StageName, lane_index: int | None, stage_hash: str, path: Path
+    ) -> None:
+        key = stage_key(stage, lane_index)
+        self._mark(key, recomputed=False)
+        record_stage(self.manifest, key, stage.value, stage_hash, self.paths.store_path(path))
 
     @property
     def recomputed(self) -> list[str]:
@@ -83,21 +96,21 @@ class Pipeline:
         # chain incoherent (and risk a false hit if the file later reverts) — so we
         # surface it instead. The (path,size,mtime) fingerprint is a cheap pre-check
         # that avoids re-hashing an unchanged file.
-        if not source_unchanged(self.recipe.source_image):
-            fresh = build_image_ref(self.recipe.source_image.path)
-            if fresh.sha256 != self.recipe.source_image.sha256:
-                raise SourceImageChangedError(
-                    f"Source image {self.recipe.source_image.path!r} has changed on disk "
-                    f"(recipe sha256 {self.recipe.source_image.sha256[:12]}…, "
-                    f"current {fresh.sha256[:12]}…). Re-run `gelpy init` against a fresh "
-                    f"run folder, or point the recipe at the intended file."
-                )
+        source = self.paths.resolve(self.recipe.source_image.path)
+        if not source_unchanged(self.recipe.source_image, source):
+            require_source(self.recipe.source_image, source)
+            fresh = build_image_ref(source)
+            require_unchanged(self.recipe.source_image, source, fresh.sha256)
         existed = path.exists()
-        arr = get_or_compute_npy(
-            path, lambda: apply_image_meta(self.recipe.source_image.path, self.recipe.image)
-        )
+        arr = get_or_compute_npy(path, lambda: apply_image_meta(str(source), self.recipe.image))
         self._mark(stage_key(StageName.IMAGE), recomputed=not existed)
-        record_stage(self.manifest, stage_key(StageName.IMAGE), StageName.IMAGE.value, h, str(path))
+        record_stage(
+            self.manifest,
+            stage_key(StageName.IMAGE),
+            StageName.IMAGE.value,
+            h,
+            self.paths.store_path(path),
+        )
         self._image = arr
         return arr
 
@@ -125,7 +138,11 @@ class Pipeline:
         data = get_or_compute_npz(path, _compute)
         self._mark(stage_key(StageName.BACKGROUND), recomputed=not existed)
         record_stage(
-            self.manifest, stage_key(StageName.BACKGROUND), StageName.BACKGROUND.value, h, str(path)
+            self.manifest,
+            stage_key(StageName.BACKGROUND),
+            StageName.BACKGROUND.value,
+            h,
+            self.paths.store_path(path),
         )
         self._background_image = data["corrected"]
         return self._background_image
@@ -150,7 +167,7 @@ class Pipeline:
             stage_key(StageName.PROFILE, lane.index),
             StageName.PROFILE.value,
             h,
-            str(path),
+            self.paths.store_path(path),
         )
         return np.asarray(data, dtype=np.float64)
 
@@ -167,13 +184,15 @@ class Pipeline:
 
         if path.exists():
             try:
-                result = LaneFitResult.model_validate_json(path.read_text())
+                result = LaneFitResult.model_validate_json(path.read_text(encoding="utf-8"))
             except Exception:
                 path.unlink(missing_ok=True)  # corrupt cache -> fall through to recompute
             else:
                 self._mark(key, recomputed=False)
                 self._note_upstream_reused(lane)
-                record_stage(self.manifest, key, StageName.FIT.value, h, str(path))
+                record_stage(
+                    self.manifest, key, StageName.FIT.value, h, self.paths.store_path(path)
+                )
                 return result
 
         full = self.ensure_profile(lane)
@@ -192,5 +211,5 @@ class Pipeline:
         # cache hit short-circuited the lazy thunk) were reused, so the summary is
         # complete even though they were never physically loaded.
         self._note_upstream_reused(lane)
-        record_stage(self.manifest, key, StageName.FIT.value, h, str(path))
+        record_stage(self.manifest, key, StageName.FIT.value, h, self.paths.store_path(path))
         return result

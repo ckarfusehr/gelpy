@@ -1,6 +1,6 @@
 # gelpy analysis report
 
-**Source image:** `examples/data/folding_screen.tif`
+**Source image:** `folding_screen.tif` (sha256 `6031cfb91ba5b06fd2f8f217d7fd654b99a3a696e562b8bef91ec6942e47ef01`)
 **Dimensions:** 4688 x 1364 px
 **Lanes:** 20 (profile width 159 px)
 **Background:** robust_plane

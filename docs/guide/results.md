@@ -5,7 +5,7 @@ summary: What every column of results.csv means, in what units, why area is not 
 subject:
   - src/gelpy/schemas/results.py
   - src/gelpy/runfolder/results.py
-subject_digest: e58deb41b4f51f3b
+subject_digest: df68e64adb96fd5c
 ---
 
 ## The shape of the file
@@ -14,8 +14,13 @@ subject_digest: e58deb41b4f51f3b
 row, with the band columns blank -- lanes are never dropped for being uninteresting -- so the
 row count is `sum(bands) + (band-less lanes)`, not the lane count.
 
+A text cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return -- usually a lane
+label -- is written with a leading `'`, so a spreadsheet shows it as text instead of evaluating
+it; numbers are written as numbers. `results.json` carries the labels unchanged.
+<!-- claim: csv-formula-cells-are-text -->
+
 `results.csv` and `results.json` are written by `fit run` and `fit refit-lane` only
-(`runfolder/commands.py:385`, `:419`), assembled from cached fits with no recomputation. That
+(`runfolder/commands.py:523`, `:541`), assembled from cached fits with no recomputation. That
 is why they can fall behind the recipe; see [Staleness](#staleness-a-lane-that-disappears).
 
 Everything here assumes a run folder and a source image. Set them once; this block is skipped
@@ -56,7 +61,7 @@ The first twelve columns are fixed and in this order: `lane_index`, `label`, `ba
 | column | scope | what it is |
 |---|---|---|
 | `lane_index` | lane | 0-based index into `recipe.json`'s lane list. |
-| `label` | lane | The lane's label from the recipe. `init` defaults to 1-based well numbers, so `label` is usually `lane_index + 1` as a string -- they are not interchangeable. |
+| `label` | lane | The lane's current label from the recipe: a lane relabelled after it was fitted shows its new label without being refit. `init` defaults to 1-based well numbers, so `label` is usually `lane_index + 1` as a string -- they are not interchangeable. |
 | `band_number` | band | 0-based within the lane, assigned *after* sorting by `maximum_position`, so band 0 is always the one nearest the start of the fitted window. |
 | `component_class` | band | `sample`, `well`, `smear`, `dust` or `unknown`. Semantic only -- see below. |
 | `shape` | band | `gaussian`, `emg`, `bi_gaussian`, `pseudo_voigt`, or `region` for a `smear` component that fitted its own region badly (local R^2 < 0.75) and was integrated numerically instead. |
@@ -72,7 +77,7 @@ After those twelve comes `method` (the strategy that produced the lane's fit), t
 `param_<name>` column per fitted shape parameter, then `error`. That tail is **not stable**:
 
 - `param_*` columns are added in first-seen order across the rows in the file
-  (`runfolder/results.py:68-72`), so the set and the order follow whichever shapes the fit
+  (`runfolder/results.py:196-202`), so the set and the order follow whichever shapes the fit
   chose. The run above -- 15 rows over two lanes -- gives a 20-column header: the fixed twelve,
   `method`, and seven `param_*` whose order (`param_sigma_left` before `param_sigma`) is an
   artifact of lane 1's first band being a bi-Gaussian.
@@ -89,7 +94,7 @@ since every width parameter is in pixels. The denominator `signal_area` is a tra
 which is why coverage can exceed 1 (below).
 
 Those units depend on how the profile was prepared. It is a column-mean of the canonical float
-image, then sliced, then normalized, in that order (`runfolder/pipeline.py:180-183`). With the
+image, then sliced, then normalized, in that order (`runfolder/pipeline.py:199-202`). With the
 default `--normalization area` the sliced profile is divided by its own integral before
 fitting, so it integrates to exactly 1 and `area` is a dimensionless share of the lane's window
 integral, baseline included. With `--normalization safe` the same lane's areas come out 2.27x
@@ -220,14 +225,17 @@ Same fits, three different amounts of truth.
 
 - **`results.csv`** -- the flattened table above. It drops per-band `centroid`, `region`,
   `shape_r2`, `at_bound`, `low_identifiability` and per-lane `baseline`, `signal_area`,
-  `coverage`, `quality`, `confidence_reasons`. Written with a plain `open()`, not atomically
-  (`runfolder/results.py:74`), so an interrupted `fit run` can truncate it; re-run the fit and
-  it is rewritten from cache.
+  `coverage`, `quality`, `confidence_reasons`. Written atomically, like every other file of the
+  run (`runfolder/results.py:228`): an interrupted `fit run` leaves the old file, and a link at the
+  name is replaced, never written through.
 - **`results.json`** -- the serialized `AnalysisResult`: every field of every `LaneFitResult`,
   including those ten, so `quality` (`reduced_chi2`, `r2`, `residual_autocorr`, `noise_sigma`,
   `n_components`, `aicc`, `bic`) is here and nowhere else, and `confidence_reasons` are here in
   full -- the fit command prints them on its own stdout summary as `reasons`, and `report.md`
-  shows the first two. Written atomically. Parse this one if you branch on quality.
+  shows the first two. It also carries `gelpy_version`, the version that assembled it, which
+  `results.csv` does not. Files gelpy 1.0 wrote have no such field -- neither its `results.json`
+  nor that run folder's `manifest.json` or history lines -- so read it with
+  `.get("gelpy_version")`. Written atomically. Parse this one if you branch on quality.
 - **`report.md`** -- an eight-column human table (`lane_index`, `label`, `band`, `class`,
   `area_fraction`, `x`, `confidence`, `status`) plus a summary line per lane with coverage and,
   when confidence is `low`, the first two reasons. Regenerated after each fit command. Cosmetic
@@ -236,12 +244,24 @@ Same fits, three different amounts of truth.
 ## Staleness: a lane that disappears
 
 Results are assembled from whatever the manifest's fit records point at, with two filters
-(`runfolder/results.py:18-33`): a lane no longer in the recipe is dropped, and a cached fit
-whose `fit_hash` no longer equals the hash recomputed from the current recipe plus that lane's
-stored `(profile, fit)` config is dropped as stale. A lane with a cached fit but no entry in
-`fit_config.json` is kept, best effort, because there is nothing to validate it against.
+(`runfolder/results.py:26-46`): a lane no longer in the recipe is dropped, and a cached fit
+whose `fit_hash` no longer equals the hash recomputed from the current recipe, that lane's
+stored `(profile, fit)` config and the running gelpy version is dropped as stale. A lane with a
+cached fit but no entry in `fit_config.json` has no config to recompute the hash from, so only the
+version is checked: the fit is kept, best effort, while the running gelpy version computed it, and
+dropped as stale otherwise (a record from before 1.1 names no version, so it counts as another).
+A fit that is kept carries the label the recipe has now, not the one the lane had when it was
+fitted: the hash leaves the label out, so renaming a lane neither stales its fit nor needs a
+refit.
 
-So a recipe edit can silently empty your results. `gelpy status` is where you see it:
+A current fit whose file does not validate is not stale, it is damaged, and it is left out too, but
+never silently: `results show` lists it in `warnings` of its JSON (`AnalysisResult.warnings`, empty
+otherwise, and empty in `results.json`), and on stderr for `--format csv` and `table`, naming the
+lane and `gelpy fit refit-lane RUN --lane N` as the next step.
+
+So a recipe edit can silently empty your results, and so can installing a new gelpy: the version
+is part of every hash, so each fit the old version wrote reads as stale until its lane is
+refitted (the second fix below). `gelpy status` is where you see it:
 
 ```bash
 gelpy lanes set "$RUN" --width 200 --format text
@@ -266,10 +286,10 @@ from the cache and apply the staleness filter, so they agree with each other -- 
 `--format csv`, which renders the live assembly rather than reading the file back.
 
 The **file** `results.csv` is a different thing: it is written by a fit pass, so after an edit
-that stales a lane it still holds the rows that pass produced. If `n_stale > 0`, the file on
-disk is not describing your current recipe even though `results show --format csv` is. Re-run
-a fit command to rewrite it. (Until 1.0 the CSV format *did* read the file back, so one command
-could print two disagreeing answers.)
+that stales a lane it still holds the rows that pass produced, and after a relabel it still holds
+the old labels. If `n_stale > 0`, the file on disk is not describing your current recipe even
+though `results show --format csv` is. Re-run a fit command to rewrite it. (Until 1.0 the CSV
+format *did* read the file back, so one command could print two disagreeing answers.)
 
 Two honest fixes:
 

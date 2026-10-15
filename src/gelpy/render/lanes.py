@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 
 from ..utils.units import cm_to_inch
+from ._figure import save_figure
 
 
 def render_lane_detection(
@@ -31,9 +32,6 @@ def render_lane_detection(
     (dashed) marked, so a mismatch between "what was found" and "where lanes were placed"
     is obvious.
     """
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
     lo, hi = np.percentile(image, [1.0, 99.5])
     disp = np.clip((image - lo) / (hi - lo), 0, 1) if hi > lo else image
 
@@ -73,6 +71,4 @@ def render_lane_detection(
     ax_proj.legend(fontsize=6, loc="upper right")
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=300)
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path, dpi=300)

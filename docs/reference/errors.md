@@ -2,32 +2,47 @@
 
 # Error codes
 
-Every command failure is an `ErrorResponse` carrying a **stable** `code`, so a caller can
-branch on the kind of failure without string-matching a message. `available` lists the
-valid choices where there are any, which is usually enough to recover without reading
-source.
+Every failure is one `ErrorResponse` -- `{error, code, detail, available}` -- on stderr
+(exit code 1; 2 for a malformed command line), from `gelpy tool call` as from every other
+command, and as the text of an error result from the MCP server (`gelpy mcp`). `code` is
+**stable**: branch on it, not on the message. `detail` names the next step (for
+`validation_error` it is the JSON list of field errors), and `available` lists the valid
+choices where there are any.
 
 ```json
-{"error": "Unknown fit strategy model 'emg'.", "code": "registry",
+{"error": "Unknown fit-strategy model 'emg'.", "code": "registry",
+ "detail": "Use one of the names in `available`.",
  "available": ["bayesian", "grow_select", "sparse_seed"]}
 ```
 
 ## Domain errors
 
-| code | exception | meaning |
-|---|---|---|
-| `gelpy_error` | `GelpyError` | Base class for gelpy domain errors. |
-| `lane_selection` | `LaneSelectionError` | A lane selector matched nothing (or referenced an out-of-range index). |
-| `nonfinite_image` | `NonFiniteImageError` | The decoded image contains NaN/Inf pixels (would poison percentiles and fits). |
-| `registry` | `RegistryError` | An unknown name was requested from a registry. |
-| `source_image_changed` | `SourceImageChangedError` | The source image on disk no longer matches the recipe's recorded identity. Raised instead of silently caching pixels under a stale hash: the recipe is the source of truth for the image identity, so a genuine byte change is surfaced for the caller to resolve (re-init, or point the recipe at the new file) rather than letting the cache go incoherent. |
-| `unsupported_image` | `UnsupportedImageError` | The image could not be interpreted (unexpected ndim/shape or unknown channel strategy). |
+| code | exception | meaning | next step (`detail`) |
+|---|---|---|---|
+| `background_required` | `BackgroundRequiredError` | Profiles or fits were requested on a run without background removal: each lane would carry its own background floor into its normalization, so lanes stop being comparable. | Configure background removal first (`gelpy background remove RUN`, tool `background_remove`), or pass --allow-raw (tool: allow_raw=true) to measure the raw image on purpose. |
+| `display_required` | `DisplayRequiredError` | A command that needs a window (``lanes pick``) ran where there is none: no GUI backend of matplotlib could be selected, or none could open a window. | Set the lanes without a window: `lanes set RUN --endpoints LEFT RIGHT --n-lanes N`, or `--x-center X` once per lane (tool `lanes_set`); or run `lanes pick` on a machine with a display. |
+| `gelpy_error` | `GelpyError` | Base class for gelpy domain errors. | Read the error message; it names the value or file to change. |
+| `decode_error` | `ImageDecodeError` | The file could not be decoded as an image: not an image, damaged, or a format the decoder does not read. | Check that the file is a TIFF, PNG or JPEG image; export it again if it is damaged. |
+| `image_too_large` | `ImageTooLargeError` | The file's header declares more pixels (summed over its pages) or more pages than the configured limits; it is refused before any pixel data is decoded. | Crop or downsample the image, export only the page you need, or raise the limits with GELPY_MAX_PIXELS / GELPY_MAX_PAGES. |
+| `invalid_value` | `InvalidValueError` | A request value is inconsistent with itself or with the run folder, for example two labels for twenty lanes. A bare ``ValueError`` raised anywhere maps to this code too. | Check the value or file the message names; if it names none, this is a bug in gelpy: report it. |
+| `lane_selection` | `LaneSelectionError` | A lane selector matched nothing (or referenced an out-of-range index). | Select lanes by a label from `available`, a 0-based index, or `re:<pattern>`; `gelpy status RUN` lists the lanes. |
+| `missing_dependency` | `MissingDependencyError` | An optional dependency the command needs is not installed. | Install the extra the message names, e.g. `pip install "gelpy[mcp]"`. |
+| `nonfinite_image` | `NonFiniteImageError` | The decoded image contains NaN/Inf pixels (would poison percentiles and fits). | Replace the NaN/Inf pixels (export the image again) and run `gelpy init` on the clean file. |
+| `pick_cancelled` | `PickCancelledError` | The window of ``lanes pick`` ended before all the clicks were made (it was closed, or Enter was pressed early). Nothing was changed. | Run `lanes pick` again, click every lane center it asks for, then press Enter. |
+| `registry` | `RegistryError` | An unknown name was requested from a registry. | Use one of the names in `available`. |
+| `run_exists` | `RunExistsError` | The folder already holds a run (a ``recipe.json``); ``init`` does not replace one silently. | Pass --force (tool: force=true) to replace the run, or choose a new run folder. |
+| `run_locked` | `RunLockedError` | Another process, or another thread of this one, is writing the run folder. | Wait for the other gelpy command on this run folder to finish, then repeat the call. |
+| `source_image_changed` | `SourceImageChangedError` | The source image on disk no longer matches the recipe's recorded identity. Raised instead of silently caching pixels under a stale hash: the recipe is the source of truth for the image identity, so a genuine byte change is surfaced for the caller to resolve (re-init, or point the recipe at the new file) rather than letting the cache go incoherent. | Restore the original file, or analyse the changed image in a new run folder (`gelpy init NEW_RUN IMAGE`). |
+| `unsupported_image` | `UnsupportedImageError` | The image could not be interpreted (unexpected ndim/shape or unknown channel strategy). | Export the image as a single-page grayscale or RGB TIFF or PNG, or choose another `--channel`, and run `gelpy init` again. |
 
 
 ## Codes from non-domain failures
 
-| code | raised when |
-|---|---|
-| `not_found` | a `FileNotFoundError` escaped (missing run folder or image) |
-| `validation_error` | a pydantic `ValidationError`; `detail` carries the field errors as JSON |
-| `internal_error` | any other exception, mapped rather than leaking a traceback |
+| code | raised when | next step (`detail`) |
+|---|---|---|
+| `not_found` | a file or run folder does not exist (`FileNotFoundError`); for the source image a run records, `detail` says where to put it back | Check the path; a run folder is created with `gelpy init RUN IMAGE`. |
+| `validation_error` | a request failed validation (pydantic `ValidationError`); `detail` carries the field errors as a JSON string, each echoed `input` and field name cut at 200 characters, and `available` lists the allowed values when the first failing field takes one of a fixed set | Fix the fields listed in `detail`; `gelpy schema <Model>` prints the contract. |
+| `usage_error` | the command line is malformed: an unknown option or command, a missing argument (exit code 2) | Run the command with `--help`; `available` lists its options or subcommands. |
+| `os_error` | the operating system refused a file operation (permissions, a full disk, ...) | Check permissions and free space for the path in the message. |
+| `out_of_memory` | the process ran out of memory | Crop or downsample the image, or fit the background on a subsample (`--param subsample=4`). |
+| `internal_error` | any other exception, reported instead of a traceback | This is a bug in gelpy; report it together with the command that triggered it. |

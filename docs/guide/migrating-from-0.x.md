@@ -5,7 +5,7 @@ summary: What each Gel-object method became, why the peak-tuning arguments have 
 subject:
   - src/gelpy/cli/app.py
   - src/gelpy/schemas/results.py
-subject_digest: 225ae7fd9e1d9cd0
+subject_digest: a505cc9b7bb84777
 ---
 
 ## Read this first
@@ -88,7 +88,7 @@ Two lanes here to keep the documentation test quick. Drop `--lane` entirely to f
 | `setup_gel(line_profile_width=W)` | `gelpy lanes set "$RUN" --width W` (or `init --width`) |
 | `setup_gel(label_rotation=45)` | `gelpy lanes set "$RUN" --label-rotation 45` (default is now 90) |
 | `setup_gel(gamma=, gain=, intensity_range=)` | `gelpy contrast set "$RUN" --gamma --gain --intensity-low --intensity-high` |
-| `setup_gel(remove_bg=True)` | `gelpy background remove "$RUN"` |
+| `setup_gel(remove_bg=True)` | `gelpy background remove "$RUN"`. Optional in 0.x; from 1.1 `profiles extract`, `fit run` and `fit refit-lane` refuse a run without it (`background_required`), so a ported script that skipped it needs this line, or `--allow-raw` to measure the raw image on purpose. |
 | `setup_gel(bg_model="2d_plane_fit")` | `gelpy background remove "$RUN" --model plane_ransac` — that model's docstring says it ports the legacy `PlaneFit2d`. The 1.0 default is `robust_plane`. |
 | `show_adjusted_images()` / `show_raw_gel()` | `gelpy image show "$RUN" --kind raw\|linear\|non_linear\|corrected` |
 | `show_line_profiles(select_lanes=[...])` | `gelpy profiles extract "$RUN" --lane ... --plot` |
@@ -147,7 +147,26 @@ gelpy fit run "$RUN" --lane 1 --sigma 10
 ```
 
 ```console
-No such option: --sigma
+{
+  "error": "No such option: --sigma",
+  "code": "usage_error",
+  "detail": "Run `gelpy fit run --help` to see its arguments.",
+  "available": [
+    "--allow-raw",
+    "--auto-escalate",
+    "--baseline",
+    "--format",
+    "--lane",
+    "--method",
+    "--no-plot",
+    "--normalization",
+    "--plot",
+    "--poly-order",
+    "--seed",
+    "--shapes",
+    "--slice"
+  ]
+}
 ```
 
 This is deliberate. In 0.x those four arguments went straight into peak *detection*:
@@ -233,7 +252,9 @@ someone else. The run folder covers both, and a collaborator does not need Pytho
 `recipe.json` is the editable intent, `results.csv`/`results.json` the numbers, `report.md`
 and `render/*.png` the figures. Re-running any command against the folder reproduces the
 analysis, and re-running the unchanged parts is a few sha256-over-small-JSON ops plus a
-cached-array read: it never re-decodes the image or re-runs the background fit.
+cached-array read: under the same gelpy version it never re-decodes the image or re-runs the
+background fit. Under another version the first run recomputes every stage, because the version
+is part of every hash.
 
 The source image is referenced by path and sha256, not copied in, so send the image alongside
 the folder — or check both into the project. [concepts.md](concepts.md) explains the caching

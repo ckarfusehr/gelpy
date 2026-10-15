@@ -37,11 +37,17 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import re
 from pathlib import Path
 
 DIGEST_LENGTH = 16
 """Characters of hex kept from the sha256. 16 hex chars = 64 bits: collision risk is nil
 for a few dozen pages, and a short stamp stays readable in front matter."""
+
+
+def _unparse(node: ast.AST) -> str:
+    """``ast.unparse``, spelled the same on every Python: 3.10 writes ``lambda :``, 3.11+ ``lambda:``."""
+    return re.sub(r"\blambda :", "lambda:", ast.unparse(node))
 
 
 def _literal(node: ast.AST) -> str | None:
@@ -53,7 +59,7 @@ def _literal(node: ast.AST) -> str | None:
 
 
 def _annotation(node: ast.AST | None) -> str:
-    return ast.unparse(node) if node is not None else ""
+    return _unparse(node) if node is not None else ""
 
 
 def _signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
@@ -71,7 +77,7 @@ def _signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     for arg, default in zip(positional, pad + list(args.defaults)):
         rendered = f"{arg.arg}: {_annotation(arg.annotation)}"
         if default is not None:
-            rendered += f" = {ast.unparse(default)}"
+            rendered += f" = {_unparse(default)}"
         parts.append(rendered)
         if args.posonlyargs and arg is args.posonlyargs[-1]:
             parts.append("/")
@@ -84,7 +90,7 @@ def _signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     for arg, default in zip(args.kwonlyargs, args.kw_defaults):
         rendered = f"{arg.arg}: {_annotation(arg.annotation)}"
         if default is not None:
-            rendered += f" = {ast.unparse(default)}"
+            rendered += f" = {_unparse(default)}"
         parts.append(rendered)
 
     if args.kwarg:
@@ -102,14 +108,14 @@ def _assignment_lines(node: ast.AST, prefix: str) -> list[str]:
     lines: list[str] = []
     if isinstance(node, ast.Assign):
         rendered = _literal(node.value)
-        if rendered is None and "Field(" in ast.unparse(node.value):
-            rendered = ast.unparse(node.value)
+        if rendered is None and "Field(" in _unparse(node.value):
+            rendered = _unparse(node.value)
         if rendered is not None:
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     lines.append(f"{prefix}{target.id} = {rendered}")
     elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        rendered = "" if node.value is None else (_literal(node.value) or ast.unparse(node.value))
+        rendered = "" if node.value is None else (_literal(node.value) or _unparse(node.value))
         lines.append(f"{prefix}{node.target.id}: {_annotation(node.annotation)} = {rendered}")
     return lines
 
@@ -134,7 +140,7 @@ def _render_body(body: list[ast.stmt], prefix: str) -> list[str]:
             entries.append((("1def", node.name), rendered))
 
         elif isinstance(node, ast.ClassDef):
-            bases = ", ".join(ast.unparse(b) for b in node.bases)
+            bases = ", ".join(_unparse(b) for b in node.bases)
             rendered = [f"{prefix}class {node.name}({bases})"]
             doc = ast.get_docstring(node)
             if doc:
@@ -166,7 +172,7 @@ def surface_text(paths: list[Path], root: Path | None = None) -> str:
     chunks: list[str] = []
     for path in sorted(paths, key=lambda p: str(p)):
         label = str(path.relative_to(root)) if root else path.name
-        chunks.append("\n".join(_surface_lines(path.read_text(), label)))
+        chunks.append("\n".join(_surface_lines(path.read_text(encoding="utf-8"), label)))
     return "\n".join(chunks)
 
 

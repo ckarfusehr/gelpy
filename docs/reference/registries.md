@@ -58,7 +58,7 @@ Parameter schemas:
 | `signal_prior` | `number` | `0.3` | Prior fraction of signal pixels for the 'probabilistic' mixture. |
 | `max_iter` | `integer` | `15` | Max IRLS iterations. |
 | `tol` | `number` | `0.001` | Convergence tol on max weight change between iterations. |
-| `subsample` | `integer` | `1` | Fit the surface on every n-th pixel (lossless for a smooth surface); evaluated on the full grid. Speed escape hatch for very large images. |
+| `subsample` | `integer` | `1` | Fit the surface on every n-th pixel (lossless for a smooth surface); it is evaluated on the full grid without full-resolution coordinate grids. Speed and memory escape hatch for very large images. |
 | `contiguity` | `number` | `0.0` | Spatial-smoothing sigma (px) applied to the weight field each iteration; 0 disables. Makes weights coherent so isolated hot pixels aren't trusted as background. |
 | `clip_negative` | `boolean` | `False` | If True, clamp negatives to 0 (legacy behaviour). Default False keeps signed residuals so the baseline stays centered at 0 — clamping rectifies noise into a positive pedestal that biases downstream peak integrals. |
 

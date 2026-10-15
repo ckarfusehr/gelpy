@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Literal, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import Field
 
 from .common import CanonicalModel
+
+#: The most lanes a request, a recipe or a fit configuration may hold: the count of lanes, and any
+#: list or table with one entry per lane. A count is untyped JSON from a person or an agent, and a
+#: recipe can be edited by hand: ten million lanes would run for minutes and fill the disk before
+#: any other check spoke. Over it, a field constraint fails with ``validation_error``, which names
+#: the field and the limit.
+MAX_LANES = 1000
 
 # A single selector term is either an integer index or a string.
 #
@@ -22,8 +29,10 @@ from .common import CanonicalModel
 # replaces the old ``#``-prefix (``#`` is a shell comment character).
 LaneSelectorTerm = Union[int, str]
 
-# A full selector is the literal ``"all"``, a single term, or a list of terms.
-LaneSelector = Union[Literal["all"], LaneSelectorTerm, list[LaneSelectorTerm]]
+# A full selector is the literal ``"all"``, a single term, or a list of terms (at most MAX_LANES).
+LaneSelector = Union[
+    Literal["all"], LaneSelectorTerm, Annotated[list[LaneSelectorTerm], Field(max_length=MAX_LANES)]
+]
 
 # Schema-visible description of the selector grammar, attached to request fields so
 # it travels into every JSON schema an agent (or MCP client) reads — not just a
@@ -52,7 +61,9 @@ class LaneLayout(CanonicalModel):
     """The full set of lanes plus the shared profile-extraction width."""
 
     lanes: list[LaneDefinition] = Field(
-        default_factory=list, description="Lanes in left-to-right order."
+        default_factory=list,
+        max_length=MAX_LANES,
+        description="Lanes in left-to-right order (at most 1000).",
     )
     profile_width_px: int = Field(
         gt=0, description="Width (px) of the averaged column strip per lane."
@@ -68,8 +79,8 @@ class LaneLayout(CanonicalModel):
 class LaneDetectionResult(CanonicalModel):
     """Outcome of ``lanes detect``: the fitted N-lane grid plus a confidence signal.
 
-    The large projection array is intentionally omitted — the diagnostic overlay renderer
-    recomputes it on demand rather than routing it through this result.
+    The large projection array is intentionally omitted: ``commands.run_lane_detection`` hands it
+    to the overlay renderer next to this result rather than routing it through the result.
     """
 
     centers: list[float] = Field(description="Detected lane-center x-positions (px), left to right.")
@@ -95,3 +106,6 @@ class LaneDetectionResult(CanonicalModel):
         "pair (None for the full-height baseline). Multiple pairs for multi-band designs.",
     )
     applied: bool = Field(default=False, description="Whether the centers were persisted to the recipe.")
+    overlay: str | None = Field(
+        default=None, description="Run-relative path of the verification overlay PNG, if rendered."
+    )

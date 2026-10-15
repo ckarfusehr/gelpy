@@ -274,3 +274,14 @@ def test_detect_min_width_rejects_a_spurious_peak_that_survives_smoothing():
     assert filtered.n_detected == 10
     assert filtered.confidence == "ok"
     assert max(abs(a - b) for a, b in zip(filtered.centers, true)) < 1.0
+
+
+def test_an_invalid_regex_selector_is_a_lane_selection_error():
+    from gelpy.core.lanes import resolve_lane_selector
+
+    layout = LaneLayout(
+        lanes=[LaneDefinition(index=0, label="a", x_center_px=10.0)], profile_width_px=5
+    )
+    with pytest.raises(LaneSelectionError) as info:
+        resolve_lane_selector("re:(", layout)
+    assert info.value.available == ["a"]

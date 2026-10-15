@@ -14,7 +14,7 @@ terminal or desktop app — working in a directory that has your images.
 ## The whole analysis, one prompt
 
 ```text
-Analyse gels/my_gel.tif. It is a 20-lane agarose gel; the sample
+Analyze gels/my_gel.tif. It is a 20-lane agarose gel; the sample
 sheet is in gels/labels.txt (left to right). I want the per-lane band fractions
 and I want to know which lanes you would not trust.
 ```
@@ -43,7 +43,7 @@ and have to map them yourself later.
 
 ```text
 Give me a publication-ready image of gels/my_gel.tif with the lanes
-labelled from gels/labels.txt. No fitting, no quantification.
+labeled from gels/labels.txt. No fitting, no quantification.
 ```
 
 You get a clean contrast-adjusted render with labels and no lane overlay drawn across the
@@ -57,12 +57,12 @@ different image for a different purpose and should not be the one you put in a t
 ```text
 Plot the line profiles for gels/purification.tif in groups of five lanes — one
 plot per sample, each with its four fractions. Background-corrected, area
-normalised. Don't fit peaks.
+normalized. Don't fit peaks.
 ```
 
 Common for purification gels. Two things the agent should get right and that you should check:
 it must still remove the background first (otherwise each lane carries its own raw background
-floor into an area-normalised plot, which distorts the baselines differently per lane), and it
+floor into an area-normalized plot, which distorts the baselines differently per lane), and it
 must select lanes **by index**, because repeated fraction labels like `#3` match every group.
 
 ---

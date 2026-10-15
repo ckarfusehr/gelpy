@@ -16,28 +16,31 @@
       "subject": [
         "src/gelpy/cli/app.py",
         "src/gelpy/runfolder/commands.py",
-        "src/gelpy/schemas/requests.py"
+        "src/gelpy/schemas/requests.py",
+        "src/gelpy/core/text.py"
       ],
       "claims": [
         "default-background-model",
         "lane-selector-grammar"
       ],
-      "lines": 295
+      "lines": 317
     },
     {
       "path": "docs/guide/architecture.md",
       "title": "Architecture",
       "audience": "both",
-      "summary": "The five layers, the one-directional import rule, and what each boundary buys \u2014 including the request-to-result command seam an MCP server would wrap, and where it leaks.",
+      "summary": "The five layers, the one-directional import rule, and what each boundary buys \u2014 including the request-to-result command seam the tool layer wraps (and the MCP server through it), and where it leaks.",
       "subject": [
         "src/gelpy/schemas/requests.py",
         "src/gelpy/render/report.py",
-        "src/gelpy/runfolder/commands.py"
+        "src/gelpy/render/html_report.py",
+        "src/gelpy/runfolder/commands.py",
+        "src/gelpy/runfolder/lock.py"
       ],
       "claims": [
         "matplotlib-only-in-render"
       ],
-      "lines": 249
+      "lines": 268
     },
     {
       "path": "docs/guide/background.md",
@@ -53,7 +56,7 @@
       "claims": [
         "default-background-model"
       ],
-      "lines": 310
+      "lines": 319
     },
     {
       "path": "docs/guide/concepts.md",
@@ -69,6 +72,7 @@
         "src/gelpy/runfolder/hashing.py",
         "src/gelpy/runfolder/recipe_io.py",
         "src/gelpy/runfolder/fit_config_io.py",
+        "src/gelpy/utils/atomic.py",
         "src/gelpy/schemas/recipe.py",
         "src/gelpy/schemas/run.py",
         "src/gelpy/schemas/common.py"
@@ -79,7 +83,7 @@
         "hashes-never-read-the-image-pixels",
         "profile-hash-excludes-slice-and-normalization"
       ],
-      "lines": 271
+      "lines": 319
     },
     {
       "path": "docs/guide/driving-from-an-agent.md",
@@ -88,14 +92,17 @@
       "summary": "The machine-facing contract -- JSON on stdout, structured error codes on stderr, schema discovery, and the run folder as durable state between sessions.",
       "subject": [
         "src/gelpy/core/errors.py",
-        "src/gelpy/schemas/requests.py"
+        "src/gelpy/schemas/requests.py",
+        "src/gelpy/cli/tools.py",
+        "src/gelpy/cli/mcp_server.py",
+        "src/gelpy/schemas/tools.py"
       ],
       "claims": [
         "error-codes-are-stable-and-complete",
         "every-schema-is-discoverable",
         "lane-selector-matching-nothing-raises"
       ],
-      "lines": 290
+      "lines": 501
     },
     {
       "path": "docs/guide/extending.md",
@@ -107,7 +114,7 @@
         "src/gelpy/core/background/base.py"
       ],
       "claims": [],
-      "lines": 414
+      "lines": 433
     },
     {
       "path": "docs/guide/fit-engine.md",
@@ -146,6 +153,25 @@
       "lines": 372
     },
     {
+      "path": "docs/guide/html-report.md",
+      "title": "The HTML report",
+      "audience": "both",
+      "summary": "`gelpy report html` writes a run as a static page: the lane overlay, clean gel views, the lane and results tables, profiles, fits and provenance. No scripts, every text escaped, styling through CSS variables. It replaces only its own earlier output, and `status` says when the page is out of date.",
+      "subject": [
+        "src/gelpy/render/html_report.py",
+        "src/gelpy/cli/_render.py",
+        "src/gelpy/runfolder/report_folder.py",
+        "src/gelpy/schemas/report.py"
+      ],
+      "claims": [
+        "html-report-css-variables",
+        "html-report-fingerprint-follows-the-run",
+        "html-report-has-no-scripts",
+        "html-report-replaces-only-its-own-files"
+      ],
+      "lines": 226
+    },
+    {
       "path": "docs/guide/image-input.md",
       "title": "What gelpy does to your image first",
       "audience": "both",
@@ -156,8 +182,11 @@
         "src/gelpy/schemas/image.py",
         "src/gelpy/schemas/contrast.py"
       ],
-      "claims": [],
-      "lines": 318
+      "claims": [
+        "image-size-limits",
+        "lane-count-cap"
+      ],
+      "lines": 378
     },
     {
       "path": "docs/guide/install.md",
@@ -171,7 +200,7 @@
       "claims": [
         "schemas-import-without-scientific-stack"
       ],
-      "lines": 208
+      "lines": 225
     },
     {
       "path": "docs/guide/known-limitations.md",
@@ -184,7 +213,7 @@
         "src/gelpy/core/peaks/classify.py"
       ],
       "claims": [],
-      "lines": 323
+      "lines": 340
     },
     {
       "path": "docs/guide/lane-placement.md",
@@ -201,7 +230,7 @@
         "default-projection-strategy-is-d4-union",
         "smoothing-window-fraction"
       ],
-      "lines": 286
+      "lines": 289
     },
     {
       "path": "docs/guide/line-profiles.md",
@@ -213,7 +242,7 @@
         "src/gelpy/schemas/profiles.py"
       ],
       "claims": [],
-      "lines": 238
+      "lines": 240
     },
     {
       "path": "docs/guide/migrating-from-0.x.md",
@@ -225,7 +254,7 @@
         "src/gelpy/schemas/results.py"
       ],
       "claims": [],
-      "lines": 231
+      "lines": 252
     },
     {
       "path": "docs/guide/reading-the-figures.md",
@@ -239,12 +268,13 @@
         "src/gelpy/render/fits.py",
         "src/gelpy/render/background.py",
         "src/gelpy/render/report.py",
+        "src/gelpy/render/_figure.py",
         "src/gelpy/cli/_render.py"
       ],
       "claims": [
         "image-show-draws-no-lane-overlay-by-default"
       ],
-      "lines": 303
+      "lines": 320
     },
     {
       "path": "docs/guide/results.md",
@@ -256,9 +286,10 @@
         "src/gelpy/runfolder/results.py"
       ],
       "claims": [
+        "csv-formula-cells-are-text",
         "results-csv-columns"
       ],
-      "lines": 324
+      "lines": 344
     },
     {
       "path": "docs/guide/troubleshooting.md",
@@ -269,7 +300,7 @@
         "src/gelpy/cli/_io.py"
       ],
       "claims": [],
-      "lines": 328
+      "lines": 362
     },
     {
       "path": "docs/walkthrough/README.md",
@@ -278,7 +309,7 @@
       "summary": "The whole workflow executed on a 20-lane DNA origami folding screen, with the real commands, real output, real figures and real numbers.",
       "subject": [],
       "claims": [],
-      "lines": 463
+      "lines": 464
     }
   ]
 }

@@ -12,6 +12,7 @@ Start here. This page is a router: find the row that matches what you want, read
 | **drive gelpy from Claude Code (or any agent)** | [guide/driving-from-an-agent.md](guide/driving-from-an-agent.md) | agents, and whoever sets them up |
 | **understand the run folder and why re-running is cheap** | [guide/concepts.md](guide/concepts.md) | everyone |
 | **read a figure gelpy produced** | [guide/reading-the-figures.md](guide/reading-the-figures.md) | everyone |
+| **read a run as a web page** | [guide/html-report.md](guide/html-report.md) | everyone |
 | **know what a number in `results.csv` means** | [guide/results.md](guide/results.md) | everyone |
 | **understand how bands are fitted, and how much to trust a fit** | [guide/fit-engine.md](guide/fit-engine.md) | anyone reporting numbers |
 | **understand how lanes get placed** | [guide/lane-placement.md](guide/lane-placement.md) | anyone whose overlay looks wrong |

@@ -84,8 +84,8 @@ def test_detect_near_symmetric_is_low_confidence_and_not_inverted():
 
 from skimage import io as _skio
 
-from gelpy.core.errors import NonFiniteImageError
-from gelpy.core.image_io import apply_image_meta, canonicalize_image
+from gelpy.core.errors import ImageDecodeError, NonFiniteImageError
+from gelpy.core.image_io import apply_image_meta, canonicalize_image, decode_image
 
 
 def _save(tmp_path, name, arr):
@@ -165,3 +165,90 @@ def test_a_varying_alpha_channel_is_still_ignored(tmp_path):
         _save(tmp_path, "gray_ramp_alpha.tif", np.dstack([gel, ramp]))
     )
     assert np.allclose(plain, with_ramp)
+
+
+def test_a_file_that_is_not_an_image_is_a_decode_error(tmp_path):
+    text = tmp_path / "notes.tif"
+    text.write_text("not an image", encoding="utf-8")
+    with pytest.raises(ImageDecodeError) as info:
+        decode_image(str(text))
+    assert "notes.tif" in str(info.value)
+
+
+def test_a_missing_image_is_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        decode_image(str(tmp_path / "absent.tif"))
+
+
+def test_a_decode_error_keeps_one_line_of_the_decoders_text(tmp_path):
+    """imageio's "Could not find a backend" text spans several lines and ends in a pip hint."""
+    garbage = tmp_path / "garbage.png"
+    garbage.write_bytes(b"this is not a png " * 40)
+    with pytest.raises(ImageDecodeError) as info:
+        decode_image(str(garbage))
+    message = str(info.value)
+    assert "garbage.png" in message
+    assert "\n" not in message
+    assert "pip install" not in message
+
+
+@pytest.mark.parametrize("typed", ["absolute", "relative"])
+def test_a_decode_error_names_the_file_and_never_its_folders(tmp_path, monkeypatch, typed):
+    """Pillow's "cannot identify image file '<path>'" carries the path the file was opened by, which
+    is a private folder in a message that is logged, pasted into a report and sent to a model."""
+    folder = tmp_path / "private" / "analysis"
+    folder.mkdir(parents=True)
+    garbage = folder / "garbage.png"
+    garbage.write_bytes(b"this is not a png " * 40)
+    if typed == "relative":
+        monkeypatch.chdir(tmp_path)
+        name = "private/analysis/garbage.png"
+    else:
+        name = str(garbage)
+    with pytest.raises(ImageDecodeError) as info:
+        decode_image(name)
+    message = str(info.value)
+    assert "garbage.png" in message
+    assert str(tmp_path) not in message and "private" not in message and "analysis" not in message
+
+
+def test_a_decode_error_from_the_decoder_stage_drops_the_path_too(tmp_path, monkeypatch):
+    from gelpy.core import image_io
+
+    path = tmp_path / "private" / "small.png"
+    path.parent.mkdir()
+    _skio.imsave(str(path), np.zeros((4, 4), "uint8"), check_contrast=False)
+
+    def refuse(*args, **kwargs):
+        raise OSError(f"cannot read {path} at byte 12")
+
+    monkeypatch.setattr(image_io.io, "imread", refuse)
+    with pytest.raises(ImageDecodeError) as info:
+        decode_image(str(path))
+    assert "cannot read small.png at byte 12" in str(info.value)
+    assert str(tmp_path) not in str(info.value)
+
+
+# --- length-1 axes: the decoder reads the layout the header probe counted ----------------------------
+def _decoded_shape(path):
+    page, pages = decode_image(str(path))
+    return page.shape, pages
+
+
+def test_a_shaped_tiff_with_a_length_one_axis_decodes_to_its_pages(tmp_path):
+    import tifffile
+
+    path = tmp_path / "four.tif"
+    tifffile.imwrite(path, np.arange(4 * 5 * 6, dtype="uint8").reshape(4, 1, 5, 6))
+    assert _decoded_shape(path) == ((5, 6), 4)
+    path = tmp_path / "one.tif"
+    tifffile.imwrite(path, np.zeros((1, 1, 5, 6), "uint8"))
+    assert _decoded_shape(path) == ((5, 6), 1)
+
+
+def test_a_gel_with_a_trailing_length_one_axis_is_one_page(tmp_path):
+    import tifffile
+
+    path = tmp_path / "hw1.tif"
+    tifffile.imwrite(path, np.zeros((5, 6, 1), "uint8"))
+    assert _decoded_shape(path) == ((5, 6), 1)

@@ -120,3 +120,22 @@ def test_render_report(tmp_path):
     text = out.read_text()
     assert "gelpy analysis report" in text
     assert "lane_index" in text
+
+
+def test_the_report_names_the_image_by_file_name_and_hash_not_by_path(tmp_path):
+    """A path recorded relative to the run folder means nothing to a reader of a copied report."""
+    ref = ImageRef(
+        path="../data/gel.tif", sha256="a" * 64, size=10, mtime=1.0, height=120, width=200,
+        dtype="float64",
+    )
+    layout = LaneLayout(
+        lanes=[LaneDefinition(index=0, label="Größe", x_center_px=40.0)], profile_width_px=30
+    )
+    result = AnalysisResult(
+        lanes=[LaneFitResult(lane_index=0, label="Größe", coverage=1.0, bands=[_band()])]
+    )
+    out = render.render_report(Recipe(source_image=ref, lanes=layout), result, tmp_path / "r.md")
+    text = out.read_text(encoding="utf-8")
+    assert f"**Source image:** `gel.tif` (sha256 `{'a' * 64}`)" in text
+    assert "../data" not in text
+    assert "Größe" in text

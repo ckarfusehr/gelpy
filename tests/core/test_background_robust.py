@@ -1,12 +1,17 @@
 """Robust IRLS background fit: unit tests for the helpers + surface-recovery on
 synthetic gels with a known background and planted signal (the correctness proof)."""
 
+import tracemalloc
+
 import numpy as np
 import pytest
 
 from gelpy.core.background import background_registry
 from gelpy.core.background.robust_plane import (
+    _smooth_weights,
     asymmetric_weights,
+    evaluate_surface,
+    fit_surface,
     polynomial_design,
     probabilistic_weights,
     robust_sigma,
@@ -146,3 +151,112 @@ def test_deterministic():
     a = _fit(img).background_plane
     b = _fit(img).background_plane
     assert np.array_equal(a, b)  # no RNG -> byte-identical (content-hash cache needs this)
+
+
+def _reference_fit_surface(image, params):
+    """The previous implementation, verbatim apart from names: it builds full-resolution grids
+    and the full design matrix even when subsampling. Kept only as the yardstick."""
+    h, w = image.shape
+    gx_full, gy_full = np.meshgrid(np.linspace(-1.0, 1.0, w), np.linspace(-1.0, 1.0, h))
+    design_full = polynomial_design(gx_full, gy_full, params.order)
+    s = params.subsample
+    if s > 1:
+        gx_fit, gy_fit = gx_full[::s, ::s], gy_full[::s, ::s]
+        fit_shape = gx_fit.shape
+        design_fit = polynomial_design(gx_fit, gy_fit, params.order)
+        z_fit = image[::s, ::s].ravel().astype(np.float64)
+    else:
+        fit_shape = (h, w)
+        design_fit = design_full
+        z_fit = image.ravel().astype(np.float64)
+    contiguity_px = params.contiguity / s if params.contiguity > 0 else 0.0
+    weights = np.ones_like(z_fit)
+    prev_theta = theta = None
+    for _ in range(params.max_iter):
+        theta = weighted_lstsq(design_fit, z_fit, weights)
+        if prev_theta is not None:
+            rel = float(np.max(np.abs(theta - prev_theta)) / (np.max(np.abs(theta)) + 1e-12))
+            if rel < params.tol:
+                break
+        prev_theta = theta
+        residual = z_fit - design_fit @ theta
+        sigma = robust_sigma(residual)
+        if params.weight_mode == "asymmetric":
+            weights = asymmetric_weights(residual, params.asymmetry_p)
+        else:
+            weights = probabilistic_weights(residual, sigma, params.signal_prior)
+        if contiguity_px > 0:
+            weights = _smooth_weights(weights, fit_shape, contiguity_px)
+    surface = (design_full @ theta).reshape(h, w)
+    full_residual = image - surface
+    full_sigma = robust_sigma(full_residual.ravel())
+    if params.weight_mode == "asymmetric":
+        full_w = asymmetric_weights(full_residual.ravel(), params.asymmetry_p)
+    else:
+        full_w = probabilistic_weights(full_residual.ravel(), full_sigma, params.signal_prior)
+    return surface, full_w.reshape(h, w)
+
+
+COEFS = [10.0, 2.0, -1.0, 0.5, 0.2, -0.3]
+
+
+@pytest.mark.parametrize("order", [0, 1, 2])
+def test_evaluate_surface_matches_the_design_matrix(order):
+    """Broadcasting two 1-D coordinate vectors gives the terms of ``polynomial_design``."""
+    theta = np.asarray(COEFS[: (1, 3, 6)[order]])
+    gx, gy = np.linspace(-1.0, 1.0, 37), np.linspace(-1.0, 1.0, 23)
+    gxx, gyy = np.meshgrid(gx, gy)
+    expected = (polynomial_design(gxx, gyy, order) @ theta).reshape(23, 37)
+    surface = evaluate_surface(theta, gx, gy, order)
+    assert surface.shape == (23, 37)
+    np.testing.assert_allclose(surface, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_evaluate_surface_makes_one_full_size_temporary_at_order_2():
+    """The surface itself and one scratch array for the xy term: two image-size arrays, not three."""
+    theta = np.asarray(COEFS)
+    gx, gy = np.linspace(-1.0, 1.0, 1200), np.linspace(-1.0, 1.0, 1000)
+    tracemalloc.start()
+    try:
+        evaluate_surface(theta, gx, gy, 2)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 2.5 * 1000 * 1200 * 8, peak
+
+
+@pytest.mark.parametrize("order", [0, 1, 2])
+@pytest.mark.parametrize("size", [(300, 400), (301, 403)], ids=["300x400", "301x403"])
+def test_a_subsampled_fit_gives_the_same_surface_as_before(order, size):
+    """The surface covers every row and column, whether or not the stride of 4 lands on the last
+    one: 301 rows end on a sampled row, 403 columns leave two columns after the last sampled."""
+    img, _ = _gel(*size, COEFS[: (1, 3, 6)[order]], order, [80, 200, 320])
+    params = RobustPlaneParams(order=order, subsample=4)
+    surface, weights, _ = fit_surface(img, params)
+    ref_surface, ref_weights = _reference_fit_surface(img, params)
+    np.testing.assert_allclose(surface, ref_surface, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(weights, ref_weights, rtol=1e-6, atol=1e-9)
+
+
+def test_the_default_fit_is_bit_identical_to_before():
+    img, _ = _gel(200, 260, COEFS, 2, [60, 130, 200])
+    params = RobustPlaneParams(order=2)  # subsample=1
+    surface, _, _ = fit_surface(img, params)
+    assert np.array_equal(surface, _reference_fit_surface(img, params)[0])
+
+
+def test_a_subsampled_fit_never_builds_full_resolution_grids():
+    img, _ = _gel(1000, 1200, COEFS, 2, [200, 600, 1000])
+    params = RobustPlaneParams(order=2, subsample=4)
+
+    def peak(fit):
+        tracemalloc.start()
+        try:
+            fit(img, params)
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    before, after = peak(_reference_fit_surface), peak(fit_surface)
+    # Measured 0.54; the two grids kept alive alone give 0.66, which 0.7 would let through.
+    assert after < 0.6 * before, (after, before)

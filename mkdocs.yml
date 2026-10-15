@@ -59,6 +59,7 @@ nav:
       - The fit engine: guide/fit-engine.md
       - Reading the results: guide/results.md
       - Reading the figures: guide/reading-the-figures.md
+      - The HTML report: guide/html-report.md
       - Troubleshooting: guide/troubleshooting.md
       - Known limitations: guide/known-limitations.md
       - Extending gelpy: guide/extending.md
