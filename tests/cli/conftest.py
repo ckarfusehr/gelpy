@@ -3,6 +3,22 @@ import pytest
 from skimage import io
 
 
+@pytest.fixture(autouse=True)
+def _plain_cli_output(monkeypatch):
+    """Every CLI test sees the same plain, 100-column output, whatever environment runs it.
+
+    rich and typer switch colour on under GitHub Actions (`GITHUB_ACTIONS`, `FORCE_COLOR`) and
+    wrap at the terminal width, which splits `--n-lanes` with escape codes. In-process runners
+    and `subprocess` calls both read os.environ, so one autouse fixture covers them all.
+    """
+    for name in ("FORCE_COLOR", "CLICOLOR_FORCE", "GITHUB_ACTIONS", "TTY_COMPATIBLE", "TTY_INTERACTIVE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setenv("TERM", "dumb")
+    monkeypatch.setenv("COLUMNS", "100")
+    monkeypatch.setenv("LINES", "50")
+
+
 def _gaussian(x, amp, mean, sd):
     return amp * np.exp(-((x - mean) ** 2) / (2 * sd**2))
 

@@ -71,7 +71,12 @@ def test_every_command_block_executes(page, tmp_path_factory):
         "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}",
         "MPLBACKEND": "Agg",
         "COLUMNS": "100",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
     }
+    # CI (GitHub Actions) forces rich/typer colour on; the blocks' output must not depend on it.
+    for name in ("FORCE_COLOR", "CLICOLOR_FORCE", "GITHUB_ACTIONS"):
+        env.pop(name, None)
     if shutil.which("gelpy", path=env["PATH"]) is None:
         pytest.skip("the `gelpy` entry point is not installed; run `pip install -e '.[dev]'`")
 

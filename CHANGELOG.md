@@ -4,6 +4,12 @@ All notable changes to gelpy are recorded here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [semantic](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Tests only: CLI tests run with colour off and a fixed width (one autouse fixture in
+  `tests/cli/conftest.py`, the docs test sets the same), so they no longer fail under GitHub
+  Actions, where rich and typer force colour and split `--n-lanes` with escape codes.
+
 ## [1.1.0] - 2026-10-15
 
 Every failure now answers with one structured error that names the next step; the workflow
