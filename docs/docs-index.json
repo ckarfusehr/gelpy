@@ -306,7 +306,7 @@
       "path": "docs/walkthrough/README.md",
       "title": "Walkthrough on a real gel",
       "audience": "both",
-      "summary": "The whole workflow executed on a 20-lane DNA origami folding screen, with the real commands, real output, real figures and real numbers.",
+      "summary": "The whole workflow executed on example gel 1, a 20-lane DNA origami gel, with the real commands, real output, real figures and real numbers.",
       "subject": [],
       "claims": [],
       "lines": 464

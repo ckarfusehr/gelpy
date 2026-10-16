@@ -13,11 +13,11 @@ written by hand.
 
 ## The example data
 
-`folding_screen.tif` is a 20-lane DNA origami folding screen (MgCl2 and NaCl titrations).
+`example_gel_1.tif` is a 20-lane DNA origami gel (MgCl2 and NaCl titrations).
 `tests/e2e`, the synthetic evaluation harness and the generated walkthrough all measure
 against it, so their numbers depend on this exact file.
 
-`20230317_first_fold_cy3_500v-[Cy3]-1.tif` is an 11-lane Cy3 gel used by
+`example_gel_2.tif` is an 11-lane Cy3 gel used by
 `tests/synthetic/real_labels.json`. It is the harder case: no single migration band contains
 all eleven lanes (lane 0 is a ladder, lane 1 a scaffold control, lanes 2-10 the samples), so a
 lane detector that greedily picks the brightest region silently drops the first two lanes.

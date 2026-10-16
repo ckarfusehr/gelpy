@@ -6,6 +6,7 @@ All notable changes to gelpy are recorded here. Format follows
 
 ## [Unreleased]
 
+- Example images renamed to `example_gel_1.tif` and `example_gel_2.tif`.
 - Tests only: CLI tests run with colour off and a fixed width (one autouse fixture in
   `tests/cli/conftest.py`, the docs test sets the same), so they no longer fail under GitHub
   Actions, where rich and typer force colour and split `--n-lanes` with escape codes.
@@ -174,7 +175,7 @@ directory explicitly, emits JSON, and recomputes only what a change invalidated.
   `lane_index`, `label`, `band_number`, `component_class`, `shape`, `area`, `area_fraction`,
   `area_uncertainty`, `maximum_position`, `residual_fraction`, `confidence`, `status`,
   `method` and `param_*`. Code that reads the 0.x columns needs updating.
-- `resources/ladders/*.png` and the unused `examples/data/folding_screen_RGB.tif` (~19 MB).
+- `resources/ladders/*.png` and the unused `examples/data/example_gel_1_RGB.tif` (~19 MB).
   MW/ladder calibration is still deferred; if it is added, the reference images can be
   recovered from git history.
 - The pre-rewrite example notebook and `examples/cli_walkthrough.sh`. The notebook used the
@@ -244,7 +245,7 @@ bugs were in development versions of 1.0, not in 0.0.4.
   not exist, because the three were missing from `schemas.__all__`. A test now checks that
   every model is reachable through `gelpy schema`.
 - `_SMOOTHING_WINDOW_FRACTION` is 0.7, but its comment and two schema descriptions said 0.35.
-  Measured on `folding_screen`: 0.7 scores 0.98 composite with 0% false-ok and 0.019×pitch
+  Measured on `example_gel_1`: 0.7 scores 0.98 composite with 0% false-ok and 0.019×pitch
   error; 0.35 scores 0.94 with 2.67% false-ok and 0.044×pitch.
 - `core/peaks/baseline.py` said the default baseline is arPLS (it is order-2 `poly`), and the
   `BaselineConfig` docstring contradicted its own `poly_order` field about order 3. Both now

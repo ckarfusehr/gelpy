@@ -7,7 +7,7 @@ subject:
 subject_digest: fe38f218542cae9d
 ---
 
-Every symptom below was reproduced against `examples/data/folding_screen.tif` (4688 x 1364 px,
+Every symptom below was reproduced against `examples/data/example_gel_1.tif` (4688 x 1364 px,
 uint16, 20 lanes); the numbers are what that run produced. Ordered by how often it bites.
 
 ## The three moves, in this order
@@ -27,7 +27,7 @@ malformed command line). Branch on `code`, not on the message; `detail` names th
 [reference/errors.md](../reference/errors.md).
 
 ```bash
-export IMAGE="${IMAGE:-examples/data/folding_screen.tif}"
+export IMAGE="${IMAGE:-examples/data/example_gel_1.tif}"
 export RUN="${RUN:-/tmp/gelpy-troubleshooting}"
 gelpy init "$RUN" "$IMAGE" --n-lanes 20
 gelpy lanes set "$RUN" --endpoints 149 4489 --n-lanes 20 --width 159

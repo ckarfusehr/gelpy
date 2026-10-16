@@ -19,7 +19,7 @@ targeted edit (e.g. refitting one lane) recomputes only what changed.
 - Run the CLI: `gelpy ...` or `python -m gelpy ...`.
 - Run all tests: `pytest tests/`
 - Run one layer: `pytest tests/core`, `pytest tests/runfolder`, `pytest tests/cli`, etc.
-- The `tests/e2e` replay uses `examples/data/folding_screen.tif` (skipped if absent).
+- The `tests/e2e` replay uses `examples/data/example_gel_1.tif` (skipped if absent).
 - Dev environment: the `gelpy_dev` conda env has the sci stack + pydantic/typer/pytest.
 - No configured linter. CI (.github/workflows/ci.yml) runs the test and documentation suites.
 

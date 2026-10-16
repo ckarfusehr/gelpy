@@ -1,7 +1,7 @@
 """End-to-end replay of the real notebook workflow via the CLI.
 
 This is the primary verification: reproduce the broad -> refit -> tight sequence
-against the actual folding_screen.tif and confirm the targeted refit recomputes
+against the actual example_gel_1.tif and confirm the targeted refit recomputes
 exactly one fit while leaving the image/background caches byte-for-byte untouched.
 """
 
@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 from gelpy.cli.app import app
 
 runner = CliRunner()
-IMAGE = Path(__file__).resolve().parents[2] / "examples" / "data" / "folding_screen.tif"
+IMAGE = Path(__file__).resolve().parents[2] / "examples" / "data" / "example_gel_1.tif"
 
 
 def _run(*args):

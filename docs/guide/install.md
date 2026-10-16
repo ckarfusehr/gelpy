@@ -62,7 +62,7 @@ Set two variables once, in one shell, from the repo root (`$IMAGE` below is a re
 Every block after this one uses them:
 
 ```bash
-export IMAGE="${IMAGE:-examples/data/folding_screen.tif}"
+export IMAGE="${IMAGE:-examples/data/example_gel_1.tif}"
 export RUN="${RUN:-/tmp/gelpy-install-check}"
 ```
 

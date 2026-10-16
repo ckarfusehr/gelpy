@@ -46,7 +46,7 @@ by the documentation test, which sets the same two variables itself:
 ```bash
 # doc-test: skip
 export RUN=/tmp/gelpy-profiles
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 ```
 
 ```bash

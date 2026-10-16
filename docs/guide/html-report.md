@@ -22,7 +22,7 @@ Two variables for every block below; the test that executes this page sets both 
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=/tmp/gelpy-html-report
 ```
 

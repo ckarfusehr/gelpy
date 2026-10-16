@@ -41,7 +41,7 @@ the best window. Directly optimizes the actual objective and yields a legible ba
 ## Acceptance (beyond the shared list)
 - Narrow-band / low-SNR conditions improve (false_low down); `y_band` populated and sensible on
   those (brackets the true band region — compare to `SynthGel.band_y_lo/hi`).
-- Cy3 and folding_screen stay `ok` with error ≤ baseline (via correct window OR fallback).
+- Cy3 and example_gel_1 stay `ok` with error ≤ baseline (via correct window OR fallback).
 - Unit test: on a synthetic gel with a known thin band, assert the chosen `y_band` overlaps the
   true band region; on Cy3-like multi-y (use `spread_migration`), assert it does not drop lanes
   (falls back or picks a covering window).

@@ -23,8 +23,8 @@ _PROFILE_WIDTH_FRACTION = 0.7
 # offset the grid fit can absorb, it's per-lane jitter. A fixed small-px blur does nothing
 # to a plateau this wide; scaling the window to the (known) pitch collapses that per-well
 # asymmetry before find_peaks ever runs. Validated on real gel images and re-measured
-# 2026-09-10 on the synthetic suite + folding_screen:
-# 0.7 gives composite 0.98 with a 0% false-ok rate and 0.019x-pitch error on folding_screen;
+# 2026-09-10 on the synthetic suite + example_gel_1:
+# 0.7 gives composite 0.98 with a 0% false-ok rate and 0.019x-pitch error on example_gel_1;
 # 0.35 gives 0.94, a 2.67% FALSE-OK rate (it reports 'ok' while being wrong -- the one failure
 # mode the suite forbids) and 0.044x-pitch on the same gel. Do not lower it without re-running
 # `python -m tests.synthetic.harness`.

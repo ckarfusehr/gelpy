@@ -18,7 +18,7 @@ from gelpy.core.line_profiles import extract_line_profile, normalize_profile
 from gelpy.schemas.fit_config import FitConfig
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "examples" / "data"
-DEFAULT_TIF = DATA_DIR / "folding_screen.tif"
+DEFAULT_TIF = DATA_DIR / "example_gel_1.tif"
 
 
 @dataclass

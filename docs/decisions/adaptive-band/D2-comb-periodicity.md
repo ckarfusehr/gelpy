@@ -43,7 +43,7 @@ spike) or a background row → low response. Then project with those weights.
 
 ## Acceptance (beyond the shared list)
 - Largest `false_low` reduction of the four expected; dust conditions' composite ≥ baseline.
-- Cy3/folding_screen stay `ok`. Verify comb-SNR(strategy) on Cy3 is NOT falsely high from the
+- Cy3/example_gel_1 stay `ok`. Verify comb-SNR(strategy) on Cy3 is NOT falsely high from the
   bright samples alone (all-N-node scoring should keep it honest).
 - Unit test: craft rows = {a comb at pitch P across N columns} vs {random spikes} vs {flat};
   assert comb rows score high, spike/flat rows low.

@@ -1226,7 +1226,7 @@ Expected: PASS. If a pre-existing test asserted native-dtype image pixels (e.g. 
 - [ ] **Step 2: Real-TIFF replay (primary verification)**
 
 Run: `pytest tests/e2e -v`
-Expected: PASS if `examples/data/folding_screen.tif` is present (else skipped). The fluorescence TIFF must detect as `bright_on_dark`, `ok`, not inverted.
+Expected: PASS if `examples/data/example_gel_1.tif` is present (else skipped). The fluorescence TIFF must detect as `bright_on_dark`, `ok`, not inverted.
 
 - [ ] **Step 3: Manual inverted-copy spot check**
 
@@ -1235,12 +1235,12 @@ python - <<'PY'
 import numpy as np
 from skimage import io
 from gelpy.core.image_io import canonicalize_image
-img = io.imread("examples/data/folding_screen.tif")
+img = io.imread("examples/data/example_gel_1.tif")
 inv = (img.max() - img).astype(img.dtype)
 io.imsave("/tmp/folding_inverted.tif", inv, check_contrast=False)
-_, m0 = canonicalize_image("examples/data/folding_screen.tif")
+_, m0 = canonicalize_image("examples/data/example_gel_1.tif")
 c1, m1 = canonicalize_image("/tmp/folding_inverted.tif")
-c0, _ = canonicalize_image("examples/data/folding_screen.tif")
+c0, _ = canonicalize_image("examples/data/example_gel_1.tif")
 print("orig:", m0.polarity, m0.polarity_confidence, "| inverted-file:", m1.polarity, m1.inverted)
 print("canonical match after re-inversion:", np.allclose(c0, c1, atol=1e-6))
 PY

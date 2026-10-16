@@ -56,4 +56,4 @@ against itself. `baseline_detect` now pins `projection_strategy="full"` and must
 Guardrails a design must not break: `falseOK` stays 0 (never silently wrong); `partial_fill`
 stays flagged low (it is the deliberate known limitation — a gel filling only part of the crop
 fights the width/N prior, and both detectors get it wrong at 4.64p while correctly saying so);
-`control_*` stay pass+ok. Real `folding_screen`: 4.44 px = 0.019×pitch, `ok`.
+`control_*` stay pass+ok. Real `example_gel_1`: 4.44 px = 0.019×pitch, `ok`.

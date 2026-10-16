@@ -10,7 +10,7 @@ subject:
 subject_digest: 0a27e410dee58fbd
 ---
 
-Every command below was run against `examples/data/folding_screen.tif` (4688 x 1364 px,
+Every command below was run against `examples/data/example_gel_1.tif` (4688 x 1364 px,
 uint16, single page, 20 lanes) while writing this page; the numbers quoted are what it
 produced. Two ideas make the sequence make sense:
 
@@ -26,7 +26,7 @@ For exhaustive option lists read [reference/cli.md](../reference/cli.md), or ask
 ## 0. Set up the run folder
 
 ```bash
-export IMAGE="${IMAGE:-examples/data/folding_screen.tif}"
+export IMAGE="${IMAGE:-examples/data/example_gel_1.tif}"
 export RUN="${RUN:-/tmp/gelpy-folding-screen}"
 gelpy init "$RUN" "$IMAGE" --n-lanes 20
 gelpy status "$RUN"

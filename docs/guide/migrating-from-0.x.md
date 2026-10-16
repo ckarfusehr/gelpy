@@ -39,7 +39,7 @@ A 0.x notebook cell looked like this:
 
 ```python
 # gelpy 0.x -- for reference only, none of this exists in 1.0
-gel = Gel("./data/folding_screen.tif")
+gel = Gel("./data/example_gel_1.tif")
 gel.setup_gel(labels=labels, x_label_pos=(150, 4485, 20), remove_bg=True)
 gel.show_line_profiles(select_lanes="all", slice_line_profile_length=(50, 600), fit="emg")
 ```
@@ -50,7 +50,7 @@ itself, which is why this block is skipped:
 ```bash
 # doc-test: skip
 export RUN=/tmp/gelpy-migration
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 ```
 
 ```bash
@@ -117,7 +117,7 @@ lanes were evenly spaced between two pixel columns you read off the image by eye
 --linspace left right n` still does exactly that, and it is still the right tool when
 detection fails — but it should not be your first move.
 
-On `folding_screen.tif`, the hand-typed `(150, 4485, 20)` from the 0.x notebook against what
+On `example_gel_1.tif`, the hand-typed `(150, 4485, 20)` from the 0.x notebook against what
 `lanes detect` measures from the image: the error is not random, it is a pitch error of
 0.27 px per lane, growing monotonically from -0.7 px at lane 0 to +4.4 px at lane 19.
 

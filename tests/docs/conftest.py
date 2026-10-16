@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-EXAMPLE_IMAGE = REPO / "examples" / "data" / "folding_screen.tif"
+EXAMPLE_IMAGE = REPO / "examples" / "data" / "example_gel_1.tif"
 
 sys.path.insert(0, str(REPO))
 

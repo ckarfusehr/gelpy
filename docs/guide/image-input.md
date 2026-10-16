@@ -43,12 +43,12 @@ a cache key. Full field list: `gelpy schema ImageMeta`.
 ## First thing to do on a new image
 
 Set the two variables the blocks below use. This block is skipped by the doc test, which sets
-both itself and points them at `examples/data/folding_screen.tif`.
+both itself and points them at `examples/data/example_gel_1.tif`.
 
 ```bash
 # doc-test: skip
 export RUN=runs/my-gel
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 ```
 
 `init` prints the whole interpretation it just froze; `status` reprints the fields that decide
@@ -250,7 +250,7 @@ GELPY_MAX_PIXELS=1000000 gelpy init "${RUN}_capped" "$IMAGE" --n-lanes 20
 
 ```console
 {
-  "error": "'folding_screen.tif' would decode to 6,394,432 pixels; the limit is 1,000,000.",
+  "error": "'example_gel_1.tif' would decode to 6,394,432 pixels; the limit is 1,000,000.",
   "code": "image_too_large",
   "detail": "Crop or downsample the image, or raise the limit with GELPY_MAX_PIXELS.",
   "available": null
@@ -295,7 +295,7 @@ records `polarity_confidence: "low"`, assumes bright-on-dark, and does **not** i
 low-confidence fallback is deliberately the reversible one, and it raises a warning that
 `init`, `image set` and `status` all carry.
 
-On `examples/data/folding_screen.tif` the cues are `g1 = +3.61` and `tail_asym = +0.97`
+On `examples/data/example_gel_1.tif` the cues are `g1 = +3.61` and `tail_asym = +0.97`
 (measured with `core.image_io.detect_polarity`): unambiguous bright-on-dark.
 
 ### Overriding it

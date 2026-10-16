@@ -14,7 +14,7 @@ subject_digest: 27351e9e6d05a169
 
 A gel image is `measured = background + signal`, and the background is additive: camera
 offset, uneven illumination, gel autofluorescence, stain haze. On
-`examples/data/folding_screen.tif` (1364x4688, canonicalized to [0,1]) the fitted surface
+`examples/data/example_gel_1.tif` (1364x4688, canonicalized to [0,1]) the fitted surface
 runs 0.00168 to 0.00230 — an offset of ~7 noise sigma with a 2.2-sigma gradient across the
 image. Measured over the 20 centres `gelpy lanes detect` finds, in 93-px strips (the width
 `init` writes), **14.7 % to 21.0 % of each raw lane integral is background, and the share
@@ -55,7 +55,7 @@ entry is created or consulted). You must configure it, and gelpy checks: `profil
 ```bash
 # doc-test: skip
 # The doc test sets these two for you; set them yourself if you are following along.
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=/tmp/gelpy-background
 ```
 
@@ -147,7 +147,7 @@ reproduced on a synthetic 400x200 gel (gentle true plane, noise sigma 0.5, band 
 
 Comfortable to ~2/3 coverage; hard failure past ~0.9, where the inter-lane gutters have
 closed and there is no background to see. Real gels sit in the safe part of that range: on
-`folding_screen.tif` the mean final weight is 0.40, 22.0 % of all corrected pixels are
+`example_gel_1.tif` the mean final weight is 0.40, 22.0 % of all corrected pixels are
 negative, and among the background-only pixels (corrected < 3 sigma, 55 % of the frame)
 40.0 % are negative while their mean sits +0.36 sigma above zero: the surface is inside the
 noise, biased low by about a third of a sigma, not eating signal. (That `< 3 sigma` cut lops

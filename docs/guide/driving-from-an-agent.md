@@ -19,7 +19,7 @@ tools. What follows is the part of that contract a driver loop depends on.
 Set two variables once; every block below uses them.
 
 ```bash
-export IMAGE="${IMAGE:-$PWD/examples/data/folding_screen.tif}"   # the source gel
+export IMAGE="${IMAGE:-$PWD/examples/data/example_gel_1.tif}"   # the source gel
 export RUN="${RUN:-/tmp/gelpy-agent-run}"                        # where the analysis lives
 ```
 
@@ -166,7 +166,7 @@ results_get        Read the results
 report_html        Write the HTML report
 {
   "run_dir": "...",
-  "source_image": ".../folding_screen.tif",
+  "source_image": ".../example_gel_1.tif",
   "image_width": 4688,
   "image_height": 1364,
 ```
@@ -355,7 +355,7 @@ gelpy status "$RUN"
 Trimmed to the fields this section is about (`gelpy schema RunStatus` is the full surface):
 
 ```console
-{"run_dir": "...", "source_image": ".../folding_screen.tif", ...,
+{"run_dir": "...", "source_image": ".../example_gel_1.tif", ...,
  "background": "robust_plane", "polarity": "bright_on_dark", "polarity_confidence": "ok", ...,
  "n_lanes": 20, "n_fit": 1, "n_stale": 0, "n_failed": 0, "stale_stages": [],
  "lanes": [{"index": 3, "label": "4", "has_fit": true, "fit_current": true,

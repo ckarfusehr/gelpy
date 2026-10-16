@@ -250,7 +250,7 @@ SUITE: tuple[GelSpec, ...] = (
         tags=("count",),
     ),
     GelSpec(
-        name="n20_realistic",  # folding_screen-like: 20 lanes, thin band cluster, mild dust+noise
+        name="n20_realistic",  # example_gel_1-like: 20 lanes, thin band cluster, mild dust+noise
         seed=19,
         n_lanes=20,
         width=2400,

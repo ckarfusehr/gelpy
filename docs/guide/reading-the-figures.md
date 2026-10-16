@@ -28,7 +28,7 @@ block is skipped by the test that executes the rest, because that test sets both
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=./run-figures
 ```
 
@@ -64,7 +64,7 @@ kind (`cli/_render.py:85-86`). Keep both files, and keep them apart:
   `x_center_px ± profile_width_px/2`, full image height (`render/images.py:73-80`). Not to the
   pixel: the rectangle uses the float bound while the extractor int-truncates and clips to the
   frame (`core/line_profiles.py:17-22`), so a strip running off an edge would be overstated by
-  the drawing. Neither bites on `folding_screen` -- `profile_width` 159 px against a 228.4 px
+  the drawing. Neither bites on `example_gel_1` -- `profile_width` 159 px against a 228.4 px
   pitch is 70% of the pitch, 68% of the frame sits inside a strip, and no strip reaches an edge.
   At `facecolor=(1, 0, 0, 0.12)` the gel stays readable through the tint, but red over 68% of
   the frame makes a poor picture of a gel.
@@ -95,7 +95,7 @@ feature in the projection is directly under the same column of the image.
 **Top panel.** The gel at a **fixed 1 to 99.5 percentile stretch, independent of the run's
 `ContrastConfig`** (`render/lanes.py:35-36`), so `gelpy contrast set` cannot change this figure.
 The stretch is linear -- no gamma -- so this panel is far less sensitive at the low end than a
-gamma-0.1 view of the same array. Measured on `folding_screen` the window is 0.0011..0.1138, and
+gamma-0.1 view of the same array. Measured on `example_gel_1` the window is 0.0011..0.1138, and
 the brightest pixel of lane index 7 (`300 NaCl`) in rows 300-600 is 0.0105: 0.08 here,
 effectively black, against 0.63 under gamma 0.1, where it is plainly a band. **An invisible lane
 here is not evidence the lane is empty** -- check `image show --kind non_linear` first. One
@@ -118,7 +118,7 @@ comparison between orange and red is the entire point of the two panels:
 - **A narrow spike carrying an orange x.** Dust or a scratch, not a lane.
   Compare widths rather than heights: a loaded lane projects to a broad bump, because it is
   ~145 px wide in x and every one of those columns projects to a similar row-mean. Measured on
-  `folding_screen`, the 20 lane bumps are 133 to 156 px wide (median 143.5) at half the depth
+  `example_gel_1`, the 20 lane bumps are 133 to 156 px wide (median 143.5) at half the depth
   between the bump maximum and its neighbouring troughs, against a 228.4 px pitch -- 0.63 of
   the pitch. Anything a few pixels wide is not a lane, whatever its height.
 
@@ -326,7 +326,7 @@ is a dollar sign and never starts mathtext, so a lane called `$\frac$` draws lik
 - **A lane with no cached fit is skipped silently.** `--plot` produces no PNG and no error for
   it, so an absent `lane_NNN.png` means "never fitted", not "fit failed".
 - **The three top titles of the background diagnostic collide** on a wide gel: the figure is
-  18 x 16 cm regardless of the image's aspect ratio, so on `folding_screen` (3.4:1) the panels
+  18 x 16 cm regardless of the image's aspect ratio, so on `example_gel_1` (3.4:1) the panels
   shrink toward the middle of the row while the titles do not. Cosmetic, but it looks like a
   bug the first time.
 - **The coverage annotation can be hidden by the legend.** It is drawn at a fixed (0.98, 0.95)

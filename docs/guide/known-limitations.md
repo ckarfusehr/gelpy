@@ -16,13 +16,13 @@ recorded elsewhere in this repo does not reproduce, this page states what I meas
 says so. Two in-repo harnesses generate most of them: `tests/synthetic/harness.py` for
 **detection** (25 gel conditions x 8 seeds = 200 runs against the generator's own lane centers,
 plus two real gels with reference centers in `real.py` — cy3's checked against the well grid,
-`folding_screen`'s an assumed even linspace; see the caveat below), and
+`example_gel_1`'s an assumed even linspace; see the caveat below), and
 `tests/synthetic/fit_harness.py` for **fitting** (16 profile conditions x 3 repeats = 48 runs,
 scored by area-fraction error against known component areas).
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=./run-limits
 ```
 
@@ -37,7 +37,7 @@ python -m tests.synthetic.real
 ```
 
 ```console
-folding_screen: shape=(1364, 4688) N=20 pitch=228.2
+example_gel_1: shape=(1364, 4688) N=20 pitch=228.2
   baseline: {... 'max_err_px': 4.4386, 'max_err_xpitch': 0.01945, 'median_err_px': 1.8719, ...}
 cy3: ... 'max_err_px': 0.2857, 'max_err_xpitch': 0.00162, ... 'confidence': 'ok'
 ```
@@ -45,7 +45,7 @@ cy3: ... 'max_err_px': 0.2857, 'max_err_xpitch': 0.00162, ... 'confidence': 'ok'
 The `baseline:` row there is the pinned `full` reference; the shipped default was measured
 separately with the same scorer.
 
-- `folding_screen`: worst lane off by **4.44 px = 0.019x pitch**, median 1.87 px, `confidence:
+- `example_gel_1`: worst lane off by **4.44 px = 0.019x pitch**, median 1.87 px, `confidence:
   ok`. Identical for the shipped default strategy and for `--projection-strategy full`. The
   signed per-lane error is a *pure ramp*: slope +0.270 px/lane, intercept -0.695 px, residual
   off that line **0.0000 px** (max and rms). Detected pitch 228.428 px against 228.158 px in
@@ -67,7 +67,7 @@ is 2.8% of the strip width, and the strip is a column *mean*, so the effect on t
 second order. The suite's pass threshold is 0.25x pitch for the same reason: past a quarter
 pitch the strip starts sampling the neighbour.
 
-Caveat on the ground truth itself: `folding_screen`'s labels are an assumed even grid
+Caveat on the ground truth itself: `example_gel_1`'s labels are an assumed even grid
 (`centers_linspace: [150, 4485]`), so this is two even grids disagreeing about pitch by 0.118%,
 and which one is right is undecidable from the fixture — part of the 4.44 px is label error and
 the gel's real comb may not be even. An earlier version of that note claimed the grid matched
@@ -104,7 +104,7 @@ under each profile at fit time. The second defaults to an arPLS-weighted polynom
 (`gelpy schema BaselineConfig` for the fields). A polynomial with curvature, fitted to a lane
 whose residual background is already flat, has only one thing left to fit: signal.
 
-On `folding_screen` lane 0, changing nothing but the baseline order:
+On `example_gel_1` lane 0, changing nothing but the baseline order:
 
 ```bash
 gelpy background remove "$RUN"
@@ -184,7 +184,7 @@ component `well` when its center falls inside it (`well_edge = well_frac * lengt
 `src/gelpy/core/peaks/classify.py:44`).
 
 A fraction of a crop is exactly the geometric guess gelpy refuses to make for lane placement. On
-`folding_screen` lane 0 the `well` component lands at index 89 of a 1364-sample profile — 6.6%,
+`example_gel_1` lane 0 the `well` component lands at index 89 of a 1364-sample profile — 6.6%,
 inside the 8% window by luck of where the crop starts. Crop 200 px higher and it falls out; crop
 tighter and a real post-well band falls in and a genuine aggregate peak past the fraction is
 silently labelled `sample`.
@@ -198,7 +198,7 @@ decision record as above.
 
 **`component_class` tracks pixel width, not biology.** The thresholds are absolute:
 `_DUST_ABS = 3.5` px and `_SMEAR_ABS = 18.0` px of equivalent Gaussian sigma
-(`src/gelpy/core/peaks/classify.py:19-20`). On `folding_screen` lane 0 the two dominant
+(`src/gelpy/core/peaks/classify.py:19-20`). On `example_gel_1` lane 0 the two dominant
 components have equivalent Gaussian sigma 51 px and 79 px, so both come back `smear` and only
 0.6% of the lane's signal is labelled `sample` — the product band sits in the smear bucket. (The
 first is an EMG whose own `sigma` param reads 50.4; `classify` thresholds
@@ -217,7 +217,7 @@ code. Area to mass or to a molecular weight is your own standard curve, built el
 **`area_fraction`'s denominator is the whole lane**: `component area / integral(profile -
 baseline)` over the fitted window, with every component counted, dust and smear included
 (`src/gelpy/core/peaks/strategies/_common.py`). One dust speck inflates the denominator and
-deflates every real band's fraction. On `folding_screen` lane 0, `coverage = 1.003` means the
+deflates every real band's fraction. On `example_gel_1` lane 0, `coverage = 1.003` means the
 fitted model integrates to *more* than the baseline-subtracted data over the window, which is
 why `residual_fraction` reads -0.0028 (it is defined as `1 - coverage`). The mechanism is the
 model's non-negativity, not overlap: 513 of that lane's 1364 samples sit below the baseline,
@@ -283,7 +283,7 @@ Designed for, absent from the code — `gelpy --help` is the authority:
 
 - `gelpy init` and `gelpy lanes detect` disagree on strip width. `detect` uses `0.7 * pitch`;
   `init` without `--width` records `image_width / (N * 2.5)` (`guess_profile_width`,
-  `src/gelpy/core/lanes.py:744-752`). On `folding_screen` that is 159 px against 93 px -- 0.70x
+  `src/gelpy/core/lanes.py:744-752`). On `example_gel_1` that is 159 px against 93 px -- 0.70x
   pitch against 0.41x -- i.e. two different measurements of one gel. `lanes set` without
   `--width` keeps the width the recipe holds, whichever of the two wrote it, so pass `--width`
   if you place lanes by hand and want the width to be neither.

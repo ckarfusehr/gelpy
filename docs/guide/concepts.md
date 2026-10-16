@@ -82,7 +82,7 @@ Every block below uses these two variables:
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif   # your gel
+export IMAGE=examples/data/example_gel_1.tif   # your gel
 export RUN=/tmp/gelpy-concepts                  # the run folder to build
 ```
 
@@ -246,7 +246,7 @@ The data is right; the label is not.
 
 ## What the caching actually buys
 
-Measured on `examples/data/folding_screen.tif` (4688 x 1364 px, 12.8 MB TIFF), 20-lane layout,
+Measured on `examples/data/example_gel_1.tif` (4688 x 1364 px, 12.8 MB TIFF), 20-lane layout,
 `robust_plane` background, `grow_select` fit of lanes 0 and 1, one laptop, three fresh run
 folders, timed through the `gelpy` entry point:
 

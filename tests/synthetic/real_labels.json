@@ -2,8 +2,8 @@
   "_comment": "Hand-labeled ground-truth lane centers for real example gels, for the adaptive-band evaluation harness. Precious/editable. Paths are relative to the repo root. 'centers' are true lane-center x-positions (px); 'band_y' marks the informative migration region(s) for reference/overlap scoring. Images may be absent locally (large TIFFs) -> the harness skips them, like tests/e2e.",
   "images": [
     {
-      "name": "folding_screen",
-      "path": "examples/data/folding_screen.tif",
+      "name": "example_gel_1",
+      "path": "examples/data/example_gel_1.tif",
       "n_lanes": 20,
       "centers_linspace": [
         150.0,
@@ -23,7 +23,7 @@
     },
     {
       "name": "cy3",
-      "path": "examples/data/20230317_first_fold_cy3_500v-[Cy3]-1.tif",
+      "path": "examples/data/example_gel_2.tif",
       "n_lanes": 11,
       "centers_linspace": [
         134.0,

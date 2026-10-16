@@ -173,7 +173,7 @@ the rest of the page, because that test sets both itself:
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif   # the example gel, 20 lanes
+export IMAGE=examples/data/example_gel_1.tif   # the example gel, 20 lanes
 export RUN=/tmp/gelpy-architecture              # a scratch run folder
 ```
 

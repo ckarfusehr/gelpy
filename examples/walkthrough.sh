@@ -9,8 +9,8 @@
 # RUN_DIR is replaced when it already holds a run (see the init step): pass one you can lose.
 set -euo pipefail
 
-RUN="${1:-runs/folding_screen}"
-IMAGE="${IMAGE:-examples/data/folding_screen.tif}"
+RUN="${1:-runs/example_gel_1}"
+IMAGE="${IMAGE:-examples/data/example_gel_1.tif}"
 LABELS="$(dirname "$RUN")/labels.txt"
 mkdir -p "$(dirname "$RUN")"
 printf '%s\n' 'scaffold' '2 MgCl2, 500 NaCl' '4 MgCl2, 500 NaCl' '6 MgCl2, 500 NaCl' '8 MgCl2, 500 NaCl' '10 MgCl2, 500 NaCl' '150 NaCl' '300 NaCl' '400 NaCl' '500 NaCl' '600 NaCl' '700 NaCl' '6 MgCl2' '10 MgCl2' '6 MgCl2, 150 NaCl, 1/2 scaf' '10 MgCl2, 150 NaCl, 1/2 scaf' '6 MgCl2, 300 NaCl, 1/2 scaf' '10 MgCl2, 300 NaCl, 1/2 scaf' '6 MgCl2, 500 NaCl, 1/2 scaf' '10 MgCl2, 500 NaCl, 1/2 scaf' > "$LABELS"

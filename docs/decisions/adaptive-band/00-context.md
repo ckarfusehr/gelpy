@@ -114,12 +114,12 @@ lesser. Composite = `0.5·pass + 0.5·flag_correct − false_ok`.
 
 ## Baseline to beat (8 seeds/condition)
 Aggregate: **medErr 0.04p · pass 94% · flagOK 82% · falseOK 0% · falseLow 18% · score 0.88**.
-Real: folding_screen 0.019×pitch `ok`; Cy3 ~0.00×pitch `ok`.
+Real: example_gel_1 0.019×pitch `ok`; Cy3 ~0.00×pitch `ok`.
 
 ## Acceptance criteria (every DX)
 1. `false_ok_rate` stays **0** in aggregate (never introduce a silent wrong answer).
 2. `partial_fill` stays failed-and-flagged-low; `control_*` stay pass+ok (fallback holds).
-3. **Real images do not regress**: folding_screen and Cy3 stay `ok` with ≤ baseline error.
+3. **Real images do not regress**: example_gel_1 and Cy3 stay `ok` with ≤ baseline error.
    (Cy3 is the guard that your strategy didn't drop the ladder/scaffold lanes.)
 4. Net improvement: aggregate `false_low_rate` **down** vs baseline (the headroom) and composite
    **up**, with no condition's composite dropping materially.

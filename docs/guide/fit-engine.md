@@ -31,7 +31,7 @@ second AICc comparison. Fitting defaults to the `grow_select` strategy, with two
 available. <!-- claim: default-fit-strategy -->
 
 The five flags 0.x needed for this — `model`, `maxima-threshold`, `maxima-prominence`,
-`peak-width`, `sigma` — are gone, without aliases, and **nothing replaces them**. Measured on `examples/data/folding_screen.tif` with pure defaults, the 20
+`peak-width`, `sigma` — are gone, without aliases, and **nothing replaces them**. Measured on `examples/data/example_gel_1.tif` with pure defaults, the 20
 lanes come back with 3 to 9 components each — chosen per lane, from one config.
 
 What is left is a different kind of knob. None of these tells the engine where a peak is:
@@ -46,7 +46,7 @@ flag** — they are calibration, not per-lane workflow. Edit them in `fit_config
 ```bash
 # doc-test: skip
 # The doc test sets these two for you; set them yourself if you are following along.
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=/tmp/gelpy-fit-engine
 ```
 

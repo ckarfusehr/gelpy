@@ -31,7 +31,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 GUIDE = REPO / "docs" / "guide"
 WALKTHROUGH = REPO / "docs" / "walkthrough"
-IMAGE = REPO / "examples" / "data" / "folding_screen.tif"
+IMAGE = REPO / "examples" / "data" / "example_gel_1.tif"
 
 BLOCK = re.compile(r"^```bash[ \t]*\n(.*?)^```[ \t]*$", re.S | re.M)
 SKIP = "# doc-test: skip"

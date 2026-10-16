@@ -42,7 +42,7 @@ little weight (one narrow spike barely lifts a row's horizontal contrast), band 
 
 ## Acceptance (beyond the shared list)
 - Aggregate `false_low_rate` clearly below baseline's 18%; composite up.
-- Cy3 and folding_screen stay `ok`, error ≤ baseline (proves no lane dropped).
+- Cy3 and example_gel_1 stay `ok`, error ≤ baseline (proves no lane dropped).
 - Unit test: craft a 2-D array with signal rows + empty rows + a one-row dust spike; assert `w`
   is high on signal rows, ~0 on empty rows, and small on the dust row.
 

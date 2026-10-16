@@ -40,7 +40,7 @@ Current entries: [reference/registries.md](../reference/registries.md), or at th
 ```bash
 # doc-test: skip
 # The doc test sets these two; set them yourself if you are following along.
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=/tmp/gelpy-extending
 ```
 
@@ -423,7 +423,7 @@ reference own it); a behavioural invariant a reader would act on does.
 
 **Every command block is executed.** `tests/docs/test_examples_execute.py` runs the ```bash
 blocks of each page under `docs/guide/` and `docs/walkthrough/` in document order, as one shell
-per page, against `examples/data/folding_screen.tif`, with `$RUN` and `$IMAGE` preset. A block
+per page, against `examples/data/example_gel_1.tif`, with `$RUN` and `$IMAGE` preset. A block
 that cannot run headless starts with `# doc-test: skip`; one that must fail starts with
 `# doc-test: expect-failure`. Transcripts go in ```text or ```console fences, which are never
 executed. A static sweep in the same file parses the CLI and fails on any option mentioned

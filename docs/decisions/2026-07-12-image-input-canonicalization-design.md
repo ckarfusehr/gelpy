@@ -254,7 +254,7 @@ The deterministic path never blocks on these; it surfaces them and proceeds, mir
   - multi-page TIFF → page 0 used + a `warnings` entry naming `source_pages`.
 - **Hashing.** Flipping `invert` (or `channel`) changes `image_hash` and invalidates
   background/profile/fit; identical inputs → identical hash (determinism).
-- **Real (verification).** e2e replay on `examples/data/folding_screen.tif`
+- **Real (verification).** e2e replay on `examples/data/example_gel_1.tif`
   (bright-on-dark fluorescence): detector → `bright_on_dark`, `ok`, no flip; results
   equivalent to today up to the [0,1] rescale. Spot-check an inverted copy of the same TIFF →
   detector flips it and downstream results match the non-inverted run.

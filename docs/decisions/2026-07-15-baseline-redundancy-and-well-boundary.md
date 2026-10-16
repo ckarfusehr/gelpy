@@ -211,5 +211,5 @@ the shipped detector, so the test asserted that the current detector leaves head
 d4_union — a test that could not fail. Fixed in the 1.0 release by pinning the reference
 explicitly. Related: `_SMOOTHING_WINDOW_FRACTION` is 0.7, not the 0.35 its own comment and two
 schema descriptions claimed; 0.7 measures better (composite 0.98 vs 0.94, 0% vs 2.67% false-ok,
-0.019x vs 0.044x pitch error on `folding_screen`), so the code was right and the prose was
+0.019x vs 0.044x pitch error on `example_gel_1`), so the code was right and the prose was
 stale.

@@ -70,7 +70,7 @@ must select lanes **by index**, because repeated fraction labels like `#3` match
 ## Quantifying one species
 
 ```text
-In runs/folding_screen, I care about the product band around profile pixel 875.
+In runs/example_gel_1, I care about the product band around profile pixel 875.
 Give me its summed area fraction per lane as a CSV I can plot, and flag any lane
 where that number is unreliable.
 ```

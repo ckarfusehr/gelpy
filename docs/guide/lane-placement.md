@@ -23,7 +23,7 @@ that the wells came from a comb, so the true centers lie on a uniform-pitch grid
 - **Spreading `N` lanes evenly across the frame is not a placement.** It is right only when the
   crop happens to be tight to the loaded lanes. `gelpy init` does exactly that as a placeholder
   (`compute_lane_positions`, 5% to 95% of the image width), and on the 20-lane
-  `folding_screen.tif` example it lands **84.4 px = 0.370 x pitch** off the true left-edge
+  `example_gel_1.tif` example it lands **84.4 px = 0.370 x pitch** off the true left-edge
   center -- past the quarter-pitch point where the strip starts eating the neighbouring lane.
   Fitted detection on the same image lands 4.44 px = 0.019 x pitch off.
 
@@ -34,7 +34,7 @@ the rest, because that test sets both itself:
 
 ```bash
 # doc-test: skip
-export IMAGE=examples/data/folding_screen.tif
+export IMAGE=examples/data/example_gel_1.tif
 export RUN=./run-lanes
 ```
 
@@ -70,7 +70,7 @@ gelpy lanes detect "$RUN" --apply
    0.2 x pitch.
 
 The pitch prior is insurance for the non-uniform gels, not a general necessity. Recomputing the
-prior-free (raw comb) score: on 22 of the 25 synthetic conditions, and on `folding_screen`
+prior-free (raw comb) score: on 22 of the 25 synthetic conditions, and on `example_gel_1`
 (prior-free argmax 228.14 px against a labeled pitch of 228.16), it already peaks at the true
 pitch, so the prior costs nothing there. It collapses toward the bottom of the search band only
 where brightness is strongly non-uniform -- `faint_right_cluster` (72.5 px against a true 116.7)
@@ -112,7 +112,7 @@ does not raise coverage, so it is skipped even when its own score is the highest
 Adoption is decided per image by comb-SNR (mean normalized height at the `N` grid nodes minus the
 mean at the anti-phase midpoints). The candidate must beat full height by more than 0.02 comb
 units **and** must not turn a full-height `"ok"` into a `"low"`. A tie loses. That is why the
-default is never worse than `full` -- and why on `folding_screen` it is not adopted at all:
+default is never worse than `full` -- and why on `example_gel_1` it is not adopted at all:
 
 ```bash
 gelpy lanes detect "$RUN" --projection-strategy full --no-plot
@@ -193,7 +193,7 @@ gelpy lanes set "$RUN" --endpoints 150 4485 --n-lanes 20
 
 **2. Focus the projection on the informative rows** with `--y-start`/`--y-end`, if faint lanes
 only appear in one migration region. Then verify it helped -- narrower is not automatically
-better. On `folding_screen`, restricting to the bright lower product band makes it *worse*,
+better. On `example_gel_1`, restricting to the bright lower product band makes it *worse*,
 because that band smiles:
 
 ```bash
@@ -260,7 +260,7 @@ Worst *single run* of the 200 for the shipped default, excluding `partial_fill`:
 brighter than the bands. Under half the quarter-pitch threshold. `d4_union` was adopted on 175 of
 the 200 runs; the rest fell back to full height.
 
-Real gel, `examples/data/folding_screen.tif` against hand-labeled centers
+Real gel, `examples/data/example_gel_1.tif` against hand-labeled centers
 (`tests/synthetic/real_labels.json`): **4.44 px = 0.019 x pitch**, `"ok"`.
 
 Sub-pixel phase is not achieved and is not needed. The profile strip is 0.7 x pitch wide (159 px
