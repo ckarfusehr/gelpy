@@ -42,9 +42,10 @@ def code_version() -> str:
 def image_hash(recipe: Recipe) -> str:
     """Identity of the CANONICAL image = source bytes + how they are interpreted + the gelpy version.
 
-    Folds the ``ImageMeta`` interpretation fields (channel + invert + page) into the hash so
-    that changing ``--invert``/``--channel``/``--page`` invalidates the cached array (and, by
-    chaining, every downstream stage). Mirrors ``background_hash`` hashing validated params.
+    Folds the ``ImageMeta`` interpretation fields (channel + invert + page + geometry) into the
+    hash so that changing ``--invert``/``--channel``/``--page``, the orientation or the crop
+    invalidates the cached array (and, by chaining, every downstream stage). Mirrors
+    ``background_hash`` hashing validated params.
     """
     m = recipe.image
     return hash_fields(
@@ -53,6 +54,7 @@ def image_hash(recipe: Recipe) -> str:
         channel_index=m.channel_index,
         inverted=m.inverted,
         page=m.page,
+        geometry=m.geometry.model_dump(mode="json"),
         code=code_version(),
     )
 

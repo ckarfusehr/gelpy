@@ -273,7 +273,7 @@ def test_a_lock_file_that_is_a_link_to_a_file_is_refused_too(fitted, tmp_path):
 READS = {"get_results", "status"}
 NOT_WRITERS = {"image_warnings"}
 #: Request fields besides run_dir that have no default.
-EXTRA_FIELDS = {"refit_lane": {"lane": 0}}
+EXTRA_FIELDS = {"refit_lane": {"lane": 0}, "crop_image": {"box": None}}
 
 
 def _public_functions(module):
@@ -332,11 +332,13 @@ def test_every_writer_refuses_a_linked_folder_before_it_writes(started, owner, n
 def test_the_writers_are_the_ones_the_run_lock_pins():
     """A writer added later is listed here, so that it is tested for a linked folder too."""
     assert {param.id for param in WRITERS} == {
+        "commands.crop_image",
         "commands.detect_lanes",
         "commands.extract_profiles",
         "commands.fit_run",
         "commands.refit_lane",
         "commands.remove_background",
+        "commands.rotate_image",
         "commands.run_lane_detection",
         "commands.set_contrast",
         "commands.set_image",
@@ -344,6 +346,7 @@ def test_the_writers_are_the_ones_the_run_lock_pins():
         "_render.ensure_fit_plots",
         "_render.render_background",
         "_render.render_fits",
+        "_render.render_grid",
         "_render.render_image",
         "_render.render_lane_overlay",
         "_render.render_profiles",

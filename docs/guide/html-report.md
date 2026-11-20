@@ -7,7 +7,7 @@ subject:
   - src/gelpy/cli/_render.py
   - src/gelpy/runfolder/report_folder.py
   - src/gelpy/schemas/report.py
-subject_digest: 560a8db2077ec886
+subject_digest: d0e98a76e909d5fb
 ---
 
 `report.md` summarises a run for a terminal. `gelpy report html RUN` (the tool `report_html`)
@@ -73,7 +73,7 @@ puts it elsewhere. `files` lists the report's files relative to its folder.
   the lane's current one, or another label: the fit hash leaves the label out, and a plot is
   titled with it.
 - **Provenance:** the gelpy version, the report's fingerprint, the source image by name and
-  sha256, how it was read, the lane layout, the display contrast, the background model and its
+  sha256, how it was read, its geometry (turn, mirror, angle, crop), the lane layout, the display contrast, the background model and its
   parameters, and each fitted lane's method, baseline, shapes, slice and seed. The full
   configuration of a lane is in `fit_config.json`.
 

@@ -30,6 +30,7 @@ from ..runfolder.stages import code_version
 from ..schemas.common import CanonicalModel, ErrorResponse
 from ..schemas.lanes import LaneDetectionResult
 from ..schemas.requests import (
+    CropImageRequest,
     DetectLanesRequest,
     ExtractProfilesRequest,
     FitRunRequest,
@@ -38,7 +39,9 @@ from ..schemas.requests import (
     InitRunRequest,
     RefitLaneRequest,
     RemoveBackgroundRequest,
+    RenderGridRequest,
     RenderImageRequest,
+    RotateImageRequest,
     SetContrastRequest,
     SetImageRequest,
     SetLanesRequest,
@@ -103,6 +106,11 @@ def _background_remove(request: RemoveBackgroundRequest) -> RunUpdateSummary:
 
 def _image_render(request: RenderImageRequest) -> ImageRenderResult:
     path = _render.render_image(request.run_dir, kind=request.kind, show_lanes=request.lanes)
+    return ImageRenderResult(image=_io.run_relative(request.run_dir, path))
+
+
+def _image_grid(request: RenderGridRequest) -> ImageRenderResult:
+    path = _render.render_grid(request.run_dir, step=request.step)
     return ImageRenderResult(image=_io.run_relative(request.run_dir, path))
 
 
@@ -172,6 +180,48 @@ _TOOL_LIST: tuple[Tool, ...] = (
         RunUpdateSummary,
         _whole_step(commands.set_image),
         destructive=True,
+    ),
+    Tool(
+        "image_rotate",
+        "Orient the image",
+        "Orient the source image before lane detection, so the wells are at the top and the "
+        "lanes run straight down: turn (a multiple of 90 degrees) and flip (mirror left-right) "
+        "copy pixels exactly; angle (at most 45 degrees, to straighten a tilted gel) interpolates "
+        "bilinearly and fills the corners from outside the source with the image's minimum. "
+        "Positive turns and angles are counter-clockwise as displayed: if the row of wells falls "
+        "to the right, a positive angle levels it. The call sets the whole orientation (a field "
+        "left out returns to its default) and removes a crop chosen on another orientation. "
+        "Check with image_grid. A change spreads the lanes evenly again: detect them afterwards.",
+        RotateImageRequest,
+        RunUpdateSummary,
+        _whole_step(commands.rotate_image),
+        destructive=True,
+    ),
+    Tool(
+        "image_crop",
+        "Crop the image",
+        "Crop the oriented image to box [x0, y0, x1, y1], read off image_grid (x1 and y1 one past "
+        "the last column and row kept; an exact copy). Crop away the empty margin around the "
+        "gel: keep the gel's top, left and right edges, and a short margin below the lowest "
+        "band, not more; leave out the filled corners of a fine rotation. box null removes the "
+        "crop; a box outside the oriented image is refused. A change spreads the lanes evenly "
+        "again: detect them afterwards.",
+        CropImageRequest,
+        RunUpdateSummary,
+        _whole_step(commands.crop_image),
+        destructive=True,
+    ),
+    Tool(
+        "image_grid",
+        "Render the coordinate grid",
+        "Render the oriented image before its crop with a labelled pixel grid "
+        "(render/grid.png): read off where the gel's edges, the wells and the lowest band are, "
+        "choose image_crop's box in these coordinates, and check it: the current box is outlined "
+        "in orange with the area outside it dimmed, and corners a fine rotation filled from "
+        "outside the source are tinted blue.",
+        RenderGridRequest,
+        ImageRenderResult,
+        _whole_step(_image_grid),
     ),
     Tool(
         "contrast_set",

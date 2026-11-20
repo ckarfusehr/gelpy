@@ -61,6 +61,30 @@ def test_a_workflow_through_mcp(gel_image, run_dir):
     assert json.loads(results.content[0].text) == results.structured_content
 
 
+def test_the_geometry_tools_through_mcp(gel_image, run_dir):
+    steps = [
+        ("init", {"run_dir": run_dir, "image_path": gel_image, "n_lanes": 4}),
+        ("image_rotate", {"run_dir": run_dir, "turn": -90, "angle": 1.5}),
+        ("image_crop", {"run_dir": run_dir, "box": [10, 10, 240, 290]}),
+        ("image_grid", {"run_dir": run_dir}),
+    ]
+
+    async def work(client):
+        answers = []
+        for name, arguments in steps:
+            answer = await client.call_tool(name, arguments)
+            assert not answer.is_error, answer.content[0].text
+            answers.append(answer.structured_content)
+        refused = await client.call_tool("image_crop", {"run_dir": run_dir, "box": [0, 0, 999, 10]})
+        return answers, refused
+
+    answers, refused = _with_client(work)
+    assert answers[1]["image"]["geometry"] == {"turn": 270, "flip": False, "angle": 1.5, "crop": None}
+    assert answers[2]["image"]["geometry"]["crop"] == [10, 10, 240, 290]
+    assert (Path(run_dir) / answers[3]["image"]).is_file()
+    assert refused.is_error and "x1 = 999 is beyond the width" in refused.content[0].text
+
+
 def test_a_failure_is_an_error_result_carrying_the_error_response(tmp_path):
     missing = str(tmp_path / "missing")
     answer = _with_client(lambda client: client.call_tool("status", {"run_dir": missing}))

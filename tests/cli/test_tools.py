@@ -24,7 +24,10 @@ PUBLIC_TOOLS = [
     "contrast_set",
     "fit_refit_lane",
     "fit_run",
+    "image_crop",
+    "image_grid",
     "image_render",
+    "image_rotate",
     "image_set",
     "init",
     "lanes_detect",
@@ -98,7 +101,9 @@ def test_annotations():
     harmless = {name for name, tool in tools.TOOLS.items() if not tool.destructive}
     repeatable = {name for name, tool in tools.TOOLS.items() if tool.idempotent}
     assert read_only == {"status", "results_get"}
-    assert harmless == {"status", "results_get", "image_render", "profiles_extract", "report_html"}
+    assert harmless == {
+        "status", "results_get", "image_render", "image_grid", "profiles_extract", "report_html"
+    }
     assert set(tools.TOOLS) - repeatable == {"init"}
 
 
@@ -253,7 +258,7 @@ HOLDER = (
 )
 
 #: Request fields a tool needs besides run_dir (and image_path).
-EXTRA_ARGUMENTS = {"fit_refit_lane": {"lane": 0}}
+EXTRA_ARGUMENTS = {"fit_refit_lane": {"lane": 0}, "image_crop": {"box": None}}
 
 
 @pytest.fixture

@@ -6,6 +6,36 @@ All notable changes to gelpy are recorded here. Format follows
 
 ## [Unreleased]
 
+## [1.2.0] - not yet released
+
+The image can be oriented and cropped before the analysis. Caches written by 1.1 are not reused:
+the gelpy version is part of every cache key, so the first command on an older run folder
+recomputes what it needs, and its fits show as stale until they are run again.
+
+### Added
+
+- `gelpy image rotate RUN [--turn DEG] [--flip] [--angle DEG]` (tool `image_rotate`): orient the
+  source image. Quarter turns and the left-right mirror copy pixels exactly; the fine angle (at
+  most 45 degrees) interpolates bilinearly, so it never leaves the input's range, onto a canvas
+  that holds the whole source, with the corners from outside the source set to the image's
+  minimum. Positive turns and angles are counter-clockwise as displayed. The call sets the whole
+  orientation and removes a crop chosen on another one.
+- `gelpy image crop RUN --box X0 Y0 X1 Y1` (tool `image_crop`): crop the oriented image to a box
+  (x1, y1 exclusive), exactly; without `--box` the crop is removed; a box outside the oriented
+  image is refused with its size.
+- `gelpy image grid RUN [--step PX]` (tool `image_grid`): `render/grid.png`, the oriented image
+  before its crop with a labelled pixel grid, the crop box outlined and the area outside it dimmed,
+  and the filled corners of a fine rotation tinted.
+- The geometry is part of the image interpretation: `recipe.json` records it as
+  `image.geometry` (`turn`, `flip`, `angle`, `crop`), it feeds the image hash, and
+  `apply_image_meta(path, meta)` replays it, so every stage, render and report shows the oriented,
+  cropped image and a run stays self-contained. A change of the image frame spreads the lanes
+  evenly over the new width, as `init` places them. `image set` keeps the geometry. `status`
+  reports `geometry` and the analysed size (`analysis_width`, `analysis_height`); the HTML
+  report lists the geometry under provenance.
+
+### Changed
+
 - Example images renamed to `example_gel_1.tif` and `example_gel_2.tif`.
 - Tests only: CLI tests run with colour off and a fixed width (one autouse fixture in
   `tests/cli/conftest.py`, the docs test sets the same), so they no longer fail under GitHub

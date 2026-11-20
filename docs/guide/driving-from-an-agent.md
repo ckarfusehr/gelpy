@@ -8,7 +8,7 @@ subject:
   - src/gelpy/cli/tools.py
   - src/gelpy/cli/mcp_server.py
   - src/gelpy/schemas/tools.py
-subject_digest: fd8c3b6aaec9160d
+subject_digest: 374e5ba8b7ac2291
 ---
 
 gelpy was built to be driven by a program. This is not a convenience layer over a "real" Python
@@ -154,6 +154,9 @@ echo "{\"run_dir\": \"$RUN\"}" | gelpy tool call status | head -5
 init               Create a run folder
 status             Read a run folder's state
 image_set          Re-interpret the source image
+image_rotate       Orient the image
+image_crop         Crop the image
+image_grid         Render the coordinate grid
 contrast_set       Set the display contrast
 lanes_detect       Detect lane centres
 lanes_set          Set lane positions, labels or width

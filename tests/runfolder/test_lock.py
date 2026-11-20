@@ -229,7 +229,7 @@ def held_run(tmp_path_factory):
 
 
 #: Request fields besides run_dir (and image_path) that have no default.
-EXTRA_FIELDS = {"init_run": {"n_lanes": 2}, "refit_lane": {"lane": 0}}
+EXTRA_FIELDS = {"init_run": {"n_lanes": 2}, "refit_lane": {"lane": 0}, "crop_image": {"box": None}}
 
 CALLS = [
     pytest.param(commands, name, id=f"commands.{name}")

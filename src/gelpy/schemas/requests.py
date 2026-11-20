@@ -23,6 +23,7 @@ from pydantic import ConfigDict, Field
 from .common import CanonicalModel
 from .baseline import BaselineConfig
 from .fit_config import FitConfig, PriorConfig
+from .image import CropBox, FineAngle, QuarterTurn
 from .lanes import (
     LANE_SELECTOR_DESCRIPTION,
     LANE_TERM_DESCRIPTION,
@@ -53,6 +54,49 @@ class SetImageRequest(RequestModel):
     invert: bool | None = Field(default=None, description="Force polarity; None keeps current unless --auto.")
     page: int | None = Field(default=None, ge=0, description="New page index; None keeps current.")
     auto: bool = Field(default=False, description="Re-run auto-detection for polarity.")
+
+
+class RotateImageRequest(RequestModel):
+    """Set the orientation of a run's source image: quarter turn, mirror and fine angle.
+
+    The call sets the whole orientation: a field left out returns to its default."""
+
+    run_dir: str = Field(description="Existing run folder.")
+    turn: QuarterTurn = Field(
+        default=0,
+        description="Quarter turn in degrees, counter-clockwise as displayed: a multiple of 90; "
+        "-90 turns clockwise. Exact.",
+    )
+    flip: bool = Field(default=False, description="Mirror left-right, after the turn. Exact.")
+    angle: FineAngle = Field(
+        default=0.0,
+        description="Fine rotation in degrees, counter-clockwise as displayed, at most 45 either "
+        "way: bilinear (no overshoot), onto a canvas that holds the whole source; the corners from "
+        "outside the source take the image's minimum.",
+    )
+
+
+class CropImageRequest(RequestModel):
+    """Crop a run's oriented image to a box, or remove the crop."""
+
+    run_dir: str = Field(description="Existing run folder.")
+    box: CropBox | None = Field(
+        description="[x0, y0, x1, y1] in pixels of the oriented image, as the coordinate grid "
+        "labels them: x0, y0 the first column and row kept, x1, y1 one past the last. null "
+        "removes the crop."
+    )
+
+
+class RenderGridRequest(RequestModel):
+    """Render the oriented image with a labelled pixel grid and the crop box."""
+
+    run_dir: str = Field(description="Existing run folder.")
+    step: int | None = Field(
+        default=None,
+        ge=1,
+        description="Pixels between grid lines; null picks a round step that gives about ten "
+        "lines along the longer side.",
+    )
 
 
 #: The four gel views `image show` renders.

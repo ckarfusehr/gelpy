@@ -4,10 +4,11 @@ audience: both
 summary: How any TIFF or PNG becomes the canonical signal-bright float array every later stage measures, and how to check the two decisions -- channel and polarity -- that can silently invert your numbers.
 subject:
   - src/gelpy/core/image_io.py
+  - src/gelpy/core/geometry.py
   - src/gelpy/core/contrast.py
   - src/gelpy/schemas/image.py
   - src/gelpy/schemas/contrast.py
-subject_digest: d64d493a554e3f29
+subject_digest: a54fa2e6acdb6127
 ---
 
 ## One funnel, one contract
@@ -29,14 +30,15 @@ Before step 1, `decode_image` reads the file header and refuses a file over the
 4. collapse color channels to 2-D
 5. decide polarity: bright-band-on-dark, or dark-band-on-light
 6. apply `1 - x` if and only if the source is dark-on-light
+7. orient and crop: the recorded geometry (see [Orientation and crop](#orientation-and-crop))
 
 Steps 1, 4 and 5 are decisions, each recorded as a categorical outcome in `ImageMeta` in
 `recipe.json`, beside the file identity (`ImageRef`). Later runs never re-detect: replay
 consumes the recorded outcome and contains no detection code. That is what makes a run folder
 replay bit-exact, and why `ImageMeta` is editable intent rather than a log line.
 
-Six inputs feed `image_hash` (`runfolder/stages.py`): the source `sha256`, `channel_strategy`,
-`channel_index`, `inverted`, `page` and the gelpy version. Change one and every downstream
+Seven inputs feed `image_hash` (`runfolder/stages.py`): the source `sha256`, `channel_strategy`,
+`channel_index`, `inverted`, `page`, `geometry` and the gelpy version. Change one and every downstream
 stage recomputes. The rest of `ImageMeta` -- `polarity_confidence` included -- is a record, not
 a cache key. Full field list: `gelpy schema ImageMeta`.
 
@@ -337,6 +339,42 @@ there is no `--auto` on `init`.
   no recompute, since `image_hash` excludes the confidence. Verified on a near-symmetric
   synthetic TIFF: `gelpy image set RUN --channel mean` alone erases the warning. Confirm a
   polarity with `--invert` / `--no-invert`; bring the flag back with `--auto`.
+
+## Orientation and crop
+
+A gel photo often shows the gel on its side, slightly tilted, or inside a wide empty margin.
+`image rotate` and `image crop` record a geometry in `recipe.json` (`image.geometry`: `turn`,
+`flip`, `angle`, `crop`), and `apply_image_meta` applies it after step 6, in that order: a
+quarter turn, a left-right mirror, a fine angle, then the crop box. Every stage, render and
+report sees the result; `status` gives its size as `analysis_width` and `analysis_height`, the
+pixels lane positions are measured in.
+
+- **Exact steps.** Quarter turns, the mirror and the crop copy pixels: same values, same dtype.
+- **The fine angle** (at most 45 degrees) interpolates bilinearly. Each output pixel is a weighted
+  mean of four input pixels with weights that sum to one, so nothing falls below the image's
+  minimum or rises above its maximum: no ringing, no negative intensities. Integer images are
+  rounded to the nearest value, ties to even; gelpy's own arrays are float64 and need no rounding.
+  The canvas grows, evenly on both sides, to hold the whole source; the corners that come from
+  outside it take the image's minimum, "no signal" in a signal-bright array. Crop them away.
+- **Directions.** Positive turns and angles are counter-clockwise as the image is displayed. If the
+  row of wells falls to the right, a positive angle levels it.
+- **One frame for the box.** The box `[x0, y0, x1, y1]` is in pixels of the oriented image (after
+  turn, flip and angle), x1 and y1 one past the last column and row kept. `image grid` draws that
+  image with labelled coordinates, the current box and the filled corners; a box outside it is
+  refused with the oriented size. A new orientation removes the old box.
+- **Lanes.** A change of the frame spreads the lanes evenly over the new width, as `init` places
+  them: orient and crop first, then detect the lanes.
+
+```bash
+gelpy image grid "$RUN"
+gelpy image rotate "$RUN" --angle 0.5 | grep -E '"oriented_(width|height)"'
+gelpy image crop "$RUN" --box 40 20 4660 1386 | grep -E '"(width|height)"'
+gelpy image crop "$RUN"
+gelpy image rotate "$RUN"
+```
+
+On the example gel (4688 x 1364 px) a 0.5 degree angle gives a 4700 x 1406 px canvas, which the
+box crops to 4620 x 1366 px. The last two commands restore the image as decoded.
 
 ## Display contrast is display only
 

@@ -95,6 +95,45 @@ def render_image(run_dir: str, kind: str = "corrected", show_lanes: bool = False
     )
 
 
+#: At most this many grid lines along the longer side of the coordinate grid.
+MAX_GRID_LINES = 200
+
+
+@locked_run_dir
+def render_grid(run_dir: str, step: int | None = None) -> Path:
+    """Render the oriented, uncropped image with a labelled pixel grid to ``render/grid.png``:
+    the frame ``image crop`` takes its box in, with the current box outlined and the corners a
+    fine rotation fills from outside the source tinted. Decodes the source; nothing is cached."""
+    from .. import render
+    from ..core.geometry import oriented_shape, source_mask
+    from ..schemas.image import ImageGeometry
+
+    paths = RunPaths(run_dir)
+    recipe = load_recipe(paths)
+    image = Pipeline(paths, recipe, load_manifest(paths)).oriented_image()
+    if step is not None and max(image.shape) / step > MAX_GRID_LINES:
+        raise InvalidValueError(
+            f"A grid step of {step} px draws {max(image.shape) // step} lines over "
+            f"{max(image.shape)} px; at most {MAX_GRID_LINES}.",
+            detail="Pass a larger step, or none for about ten lines.",
+        )
+    geometry = recipe.image.geometry
+    outside = None
+    if geometry.angle:
+        height, width = oriented_shape(
+            recipe.source_image.height, recipe.source_image.width, ImageGeometry(turn=geometry.turn)
+        )
+        outside = ~source_mask(height, width, geometry.angle)
+    return render.render_grid(
+        image,
+        paths.render / "grid.png",
+        contrast=recipe.contrast,
+        crop=geometry.crop,
+        outside=outside,
+        step=step,
+    )
+
+
 @locked_run_dir
 def render_profiles(run_dir: str, selector, profile_config: LineProfileConfig) -> Path:
     from .. import render

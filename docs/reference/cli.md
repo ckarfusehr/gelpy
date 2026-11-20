@@ -129,7 +129,48 @@ Run a full fit pass over a lane selection (no manual peak-detection tuning neede
 
 ## `gelpy image`
 
-Render gel images.
+Render, re-interpret, orient and crop the gel image.
+
+### `gelpy image crop`
+
+Crop the oriented image to a box, or remove the crop.
+
+| argument | type | required | description |
+|---|---|---|---|
+| `RUN_DIR` | `text` | **required** | Existing run folder. |
+
+| option | type | default | description |
+|---|---|---|---|
+| `--box` | `<integer integer integer integer>` |  | x0 y0 x1 y1 — the box in pixels of the oriented image (as `image grid` labels them), x1 and y1 one past the last column and row kept. Without --box the crop is removed. |
+| `--format` | `text` | `json` | Output format: json\|text. |
+
+### `gelpy image grid`
+
+Render the oriented image with a labelled pixel grid and the crop box (render/grid.png).
+
+| argument | type | required | description |
+|---|---|---|---|
+| `RUN_DIR` | `text` | **required** | Existing run folder. |
+
+| option | type | default | description |
+|---|---|---|---|
+| `--step` | `integer` |  | Pixels between grid lines; default about ten lines along the longer side. |
+| `--format` | `text` | `json` | Output format: json\|text. |
+
+### `gelpy image rotate`
+
+Orient the source image (turn, flip, fine angle); replaces the previous orientation.
+
+| argument | type | required | description |
+|---|---|---|---|
+| `RUN_DIR` | `text` | **required** | Existing run folder. |
+
+| option | type | default | description |
+|---|---|---|---|
+| `--turn` | `integer` |  | Quarter turn in degrees, counter-clockwise: a multiple of 90 (-90 turns clockwise). |
+| `--flip` | `boolean` |  | Mirror left-right, after the turn. |
+| `--angle` | `float` |  | Fine rotation in degrees, counter-clockwise, at most 45 either way (bilinear). |
+| `--format` | `text` | `json` | Output format: json\|text. |
 
 ### `gelpy image set`
 

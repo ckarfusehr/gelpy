@@ -37,7 +37,8 @@ from ..core.line_profiles import strips_overlap
 from ..schemas.background import BackgroundStageConfig
 from ..schemas.contrast import ContrastConfig, GammaCorrection, IntensityRange
 from ..schemas.fit_config import FitConfig, FitConfigStore, PerLaneFitConfig
-from ..schemas.image import ImageRef
+from ..core.geometry import analysed_shape, oriented_shape
+from ..schemas.image import ImageGeometry, ImageRef
 from ..schemas.lanes import (
     LaneDefinition,
     LaneDetectionResult,
@@ -49,6 +50,7 @@ from ..schemas.profiles import LineProfileConfig
 from ..schemas.recipe import Recipe
 from ..schemas.report import REPORT_MARKER
 from ..schemas.requests import (
+    CropImageRequest,
     DetectLanesRequest,
     ExtractProfilesRequest,
     FitConfigOverrides,
@@ -58,6 +60,7 @@ from ..schemas.requests import (
     LineProfileConfigOverrides,
     RefitLaneRequest,
     RemoveBackgroundRequest,
+    RotateImageRequest,
     SetContrastRequest,
     SetImageRequest,
     SetLanesRequest,
@@ -232,13 +235,85 @@ def set_image(request: SetImageRequest) -> RunUpdateSummary:
     require_source(recipe.source_image, source)
     ref, image_meta = build_image_ref_and_meta(source, channel=channel, invert=invert, page=page)
     require_unchanged(recipe.source_image, source, ref.sha256)
-    recipe.image = image_meta
+    recipe.image = image_meta = image_meta.model_copy(update={"geometry": current.geometry})
     _persist(paths, recipe, manifest)
     _append_history(paths, "set_image", {"channel": channel, "invert": invert, "page": page})
     return RunUpdateSummary(
         files={"recipe": _rel(paths, paths.recipe)},
         warnings=image_warnings(image_meta),
         image=image_meta.model_dump(mode="json"),
+    )
+
+
+@locked
+def rotate_image(request: RotateImageRequest) -> RunUpdateSummary:
+    """Set the orientation of the source image (turn, flip, angle), replacing the previous one.
+
+    A crop chosen on another orientation is removed: its box lies in a frame that no longer
+    exists. Like ``set_image``, a change recomputes the stages by hash on next use."""
+    paths, recipe, manifest = _load(request.run_dir)
+    current = recipe.image.geometry
+    geometry = ImageGeometry(
+        turn=request.turn, flip=request.flip, angle=request.angle, crop=current.crop
+    )
+    warnings: list[str] = []
+    if current.crop is not None and geometry.orientation() != current.orientation():
+        geometry = geometry.model_copy(update={"crop": None})
+        warnings.append(
+            "The crop was removed: its box was chosen on the previous orientation. Choose a new "
+            "one on the coordinate grid (`image grid`)."
+        )
+    return _set_geometry(paths, recipe, manifest, geometry, "image_rotate", warnings)
+
+
+@locked
+def crop_image(request: CropImageRequest) -> RunUpdateSummary:
+    """Crop the oriented image to ``request.box``; ``None`` removes the crop. A box outside the
+    oriented image is refused before anything is written."""
+    paths, recipe, manifest = _load(request.run_dir)
+    geometry = recipe.image.geometry.model_copy(update={"crop": request.box})
+    return _set_geometry(paths, recipe, manifest, geometry, "image_crop", [])
+
+
+def _set_geometry(
+    paths: RunPaths,
+    recipe: Recipe,
+    manifest: RunManifest,
+    geometry: ImageGeometry,
+    command: str,
+    warnings: list[str],
+) -> RunUpdateSummary:
+    """Record ``geometry`` in the recipe. A change of the image frame places the lanes again as
+    ``init`` does, evenly over the new width: centres measured in the old frame would sit
+    elsewhere on the new image."""
+    source = recipe.source_image
+    height, width = analysed_shape(source.height, source.width, geometry)  # refuses a bad box
+    lanes = recipe.lanes
+    if geometry != recipe.image.geometry:
+        recipe.image = recipe.image.model_copy(update={"geometry": geometry})
+        if lanes.lanes:
+            positions = compute_lane_positions(0.05 * width, 0.95 * width, len(lanes.lanes))
+            recipe.lanes = _build_layout(
+                positions, lanes.labels(), lanes.profile_width_px, lanes.label_rotation
+            )
+            warnings.append(
+                f"The image frame changed: the {len(lanes.lanes)} lane centres were spread evenly "
+                f"over the new width ({width} px). Detect the lanes again (`lanes detect`) or set "
+                "them (`lanes set`)."
+            )
+    _persist(paths, recipe, manifest)
+    _append_history(paths, command, geometry.model_dump(mode="json"))
+    oriented_height, oriented_width = oriented_shape(source.height, source.width, geometry)
+    return RunUpdateSummary(
+        files={"recipe": _rel(paths, paths.recipe)},
+        warnings=warnings,
+        image={
+            "geometry": geometry.model_dump(mode="json"),
+            "oriented_width": oriented_width,
+            "oriented_height": oriented_height,
+            "width": width,
+            "height": height,
+        },
     )
 
 
@@ -602,6 +677,9 @@ def status(request: StatusRequest) -> RunStatus:
     paths, recipe, manifest = _load(request.run_dir)
     store = load_fit_config(paths)
     follow_the_cache(paths, recipe, manifest, store)
+    analysed = analysed_shape(
+        recipe.source_image.height, recipe.source_image.width, recipe.image.geometry
+    )
 
     lanes: list[LaneStatus] = []
     n_fit = n_stale = n_failed = 0
@@ -638,6 +716,9 @@ def status(request: StatusRequest) -> RunStatus:
         source_image=recipe.source_image.path,
         image_width=recipe.source_image.width,
         image_height=recipe.source_image.height,
+        geometry=recipe.image.geometry,
+        analysis_width=analysed[1],
+        analysis_height=analysed[0],
         background=recipe.background.model if recipe.background else None,
         polarity=recipe.image.polarity,
         polarity_confidence=recipe.image.polarity_confidence,

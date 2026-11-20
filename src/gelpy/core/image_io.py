@@ -17,6 +17,7 @@ import numpy as np
 from skimage import color, io
 from skimage.util import img_as_float
 
+from .geometry import apply_geometry
 from .errors import (
     GelpyError,
     ImageDecodeError,
@@ -500,13 +501,18 @@ def canonicalize_image(
 
 
 def apply_image_meta(path: str, meta: ImageMeta) -> np.ndarray:
-    """Deterministic replay of a frozen ``ImageMeta`` — NO detection. Used by the cached
-    pipeline so the same recipe always yields the same canonical pixels."""
+    """Deterministic replay of a frozen ``ImageMeta`` — NO detection: decode the page, collapse
+    the channels, invert, then orient and crop by ``meta.geometry`` (``core/geometry.py``).
+
+    This is the array every stage analyses: the cached pipeline's image stage stores exactly
+    what it returns, so the same recipe always yields the same canonical pixels, and a consumer
+    that replays a run's recorded ``recipe.image`` gets the oriented, cropped array the run
+    analysed, with no further call."""
     raw, _ = decode_image(path, page=meta.page)
     _check_finite(raw)
     gray = _collapse_with(to_float01(raw), meta.channel_strategy, meta.channel_index)
-    canonical = 1.0 - gray if meta.inverted else gray
-    return np.ascontiguousarray(canonical, dtype=np.float64)
+    canonical = np.ascontiguousarray(1.0 - gray if meta.inverted else gray, dtype=np.float64)
+    return canonical if meta.geometry.is_identity() else apply_geometry(canonical, meta.geometry)
 
 
 def load_image(path: str) -> np.ndarray:

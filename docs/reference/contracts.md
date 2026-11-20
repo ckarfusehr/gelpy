@@ -98,6 +98,15 @@ How the gel image is displayed. Purely cosmetic: analysis runs on the raw (optio
 | `gamma` | `GammaCorrection` | _factory_ |  |
 | `intensity_range` | `IntensityRange \| None` | _factory_ |  |
 
+## `CropImageRequest`
+
+Crop a run's oriented image to a box, or remove the crop.
+
+| field | type | default | description |
+|---|---|---|---|
+| `run_dir` | `str` | **required** | Existing run folder. |
+| `box` | `tuple[int, int, int, int] \| None` | **required** | [x0, y0, x1, y1] in pixels of the oriented image, as the coordinate grid labels them: x0, y0 the first column and row kept, x1, y1 one past the last. null removes the crop. |
+
 ## `DetectLanesRequest`
 
 Detect lane centers from the image by fitting an even N-lane grid to the y-projection. ``n_lanes`` is ground truth (from the plate sheet / user) and is never inferred; detection only anchors that many evenly-spaced centers to the actual bright lane columns, so the layout is correct regardless of how the gel was cropped. Always inspect the verification overlay before relying on the result; if ``confidence`` is ``"low"``, adjust the knobs below or fall back to ``lanes set`` (tool ``lanes_set``) with explicit ``endpoints``.
@@ -264,9 +273,20 @@ Where `report html` (tool `report_html`) wrote the report.
 | `index` | `str` | **required** | Path of index.html: relative to the run folder when the report is inside it, absolute otherwise. |
 | `files` | `list[str]` | **required** | The files of the report, relative to the report folder: the page, the stylesheets and the images. .gelpy-report.json, which marks the folder as the report's, is not listed. |
 
+## `ImageGeometry`
+
+How the decoded image is oriented and cropped before analysis, in this order: ``turn``, ``flip``, ``angle``, ``crop`` (``core/geometry.py``). Turns, the mirror and the crop copy pixels exactly. The fine rotation interpolates bilinearly, so it never leaves the input's range; it rotates about the image centre onto a canvas just large enough for the whole source, padded evenly, and fills the corners that lie outside the source with the image's minimum (no signal, as gelpy's arrays are signal-bright).
+
+| field | type | default | description |
+|---|---|---|---|
+| `turn` | `int` | `0` | Quarter turn in degrees, counter-clockwise as displayed: a multiple of 90 (-90 turns clockwise), stored as 0, 90, 180 or 270. Exact. |
+| `flip` | `bool` | `False` | Mirror left-right, after the turn. Exact. |
+| `angle` | `float` | `0.0` | Fine rotation in degrees, counter-clockwise as displayed, after the turn and the flip: bilinear, about the image centre, onto a canvas that holds the whole source; the corners from outside the source take the image's minimum. |
+| `crop` | `tuple[int, int, int, int] \| None` | `None` | [x0, y0, x1, y1] in pixels of the oriented image (after turn, flip and angle): x0, y0 the first column and row kept, x1, y1 one past the last. null keeps the whole image. Exact. |
+
 ## `ImageMeta`
 
-How the source image is interpreted to produce the canonical analysis array. Interpretation intent (channel + polarity + page) — editable and precious, a sibling to ``ImageRef`` (file identity). Detected once at init; frozen here to make the cached pipeline deterministic. These fields feed ``image_hash`` (``runfolder/stages.py``), so a change here recomputes exactly what depends on the pixels.
+How the source image is interpreted to produce the canonical analysis array. Interpretation intent (channel + polarity + page + geometry) — editable and precious, a sibling to ``ImageRef`` (file identity). Detected once at init; frozen here to make the cached pipeline deterministic. These fields feed ``image_hash`` (``runfolder/stages.py``), so a change here recomputes exactly what depends on the pixels.
 
 | field | type | default | description |
 |---|---|---|---|
@@ -282,6 +302,7 @@ How the source image is interpreted to produce the canonical analysis array. Int
 | `polarity_source` | `Literal['auto', 'manual']` | `'auto'` | Whether polarity was auto-detected or set explicitly. |
 | `polarity_confidence` | `Literal['ok', 'low']` | `'ok'` | Detector confidence; 'low' raises an ignorable warning. |
 | `polarity_reason` | `str` | `''` | Human reason when confidence is 'low'. |
+| `geometry` | `ImageGeometry` | _factory_ | Orientation and crop of the decoded image (turn, flip, angle, crop): part of how the source is read, so it feeds image_hash and every stage analyses the oriented, cropped image. Set with `image rotate` and `image crop`. |
 | `reader_warnings` | `list[str]` | _factory_ | What tifffile logged (warnings and errors) while it read the source image. A stack cut off in the middle is read with its missing pages as zeros and reported only there. At most five different messages, each without the file's folders, and a line that counts the rest; a record, not a cache key. |
 
 ## `ImageRef`
@@ -503,6 +524,15 @@ Configure background removal (applied lazily by the pipeline, not eagerly).
 | `stripes` | `list[tuple[int, int]] \| None` | `None` | plane_ransac-only shim: (position, height) background stripes. Prefer `params`. |
 | `plot` | `bool` | `False` | Also render the background diagnostic figure (render/background_diagnostic.png). |
 
+## `RenderGridRequest`
+
+Render the oriented image with a labelled pixel grid and the crop box.
+
+| field | type | default | description |
+|---|---|---|---|
+| `run_dir` | `str` | **required** | Existing run folder. |
+| `step` | `int \| None` | `None` | Pixels between grid lines; null picks a round step that gives about ten lines along the longer side. |
+
 ## `RenderImageRequest`
 
 Render the gel image of a run folder to a PNG under render/.
@@ -554,6 +584,17 @@ Parameters for the ``robust_plane`` background model. An iterative-reweighted le
 | `contiguity` | `float` | `0.0` | Spatial-smoothing sigma (px) applied to the weight field each iteration; 0 disables. Makes weights coherent so isolated hot pixels aren't trusted as background. |
 | `clip_negative` | `bool` | `False` | If True, clamp negatives to 0 (legacy behaviour). Default False keeps signed residuals so the baseline stays centered at 0 — clamping rectifies noise into a positive pedestal that biases downstream peak integrals. |
 
+## `RotateImageRequest`
+
+Set the orientation of a run's source image: quarter turn, mirror and fine angle. The call sets the whole orientation: a field left out returns to its default.
+
+| field | type | default | description |
+|---|---|---|---|
+| `run_dir` | `str` | **required** | Existing run folder. |
+| `turn` | `int` | `0` | Quarter turn in degrees, counter-clockwise as displayed: a multiple of 90; -90 turns clockwise. Exact. |
+| `flip` | `bool` | `False` | Mirror left-right, after the turn. Exact. |
+| `angle` | `float` | `0.0` | Fine rotation in degrees, counter-clockwise as displayed, at most 45 either way: bilinear (no overshoot), onto a canvas that holds the whole source; the corners from outside the source take the image's minimum. |
+
 ## `RunManifest`
 
 Disposable cache ledger, fully regenerable from ``recipe.json`` + source image. ``stages`` is keyed by fully-qualified stage key (e.g. ``"image"``, ``"background"``, ``"profile:lane=12"``, ``"fit:lane=12"``).
@@ -575,6 +616,9 @@ A cold-orientation snapshot of a run folder: what's configured, fit, or stale. A
 | `source_image` | `str` | **required** | The source image path as the recipe records it: relative to the run folder where possible. |
 | `image_width` | `int` | **required** | Source image width (px). |
 | `image_height` | `int` | **required** | Source image height (px). |
+| `geometry` | `ImageGeometry` | _factory_ | Orientation and crop of the source image (`image rotate`, `image crop`). |
+| `analysis_width` | `int \| None` | `None` | Width (px) of the image the stages analyse: the source after its geometry. Lane positions are in its pixels. `status` always sets it. |
+| `analysis_height` | `int \| None` | `None` | Height (px) of the image the stages analyse. `status` always sets it. |
 | `background` | `str \| None` | `None` | Configured background model name, or null if none. |
 | `polarity` | `Literal['bright_on_dark', 'dark_on_light'] \| None` | `None` | Recorded source-image polarity. |
 | `polarity_confidence` | `Literal['ok', 'low'] \| None` | `None` | Polarity-detection confidence. |

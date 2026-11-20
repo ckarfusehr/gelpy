@@ -5,7 +5,7 @@ summary: Create an environment, install the checkout editable, and verify it wit
 subject:
   - src/gelpy/__init__.py
   - src/gelpy/__main__.py
-subject_digest: 559a2c318e2158f8
+subject_digest: ae4dd9512d0e6994
 ---
 
 ## What you need
@@ -76,7 +76,7 @@ gelpy --version
 ```
 
 ```text
-gelpy 1.1.0
+gelpy 1.2.0
 ```
 
 ```bash
@@ -84,7 +84,7 @@ gelpy --help
 python -c "import gelpy; print(gelpy.__version__)"
 ```
 
-Expect `gelpy 1.1.0`, then the command tree, then `1.1.0`. `gelpy --version` prints the version
+Expect `gelpy 1.2.0`, then the command tree, then `1.2.0`. `gelpy --version` prints the version
 and exits 0. The Python one-liner prints the same number: both read `gelpy.__version__`, and
 `pyproject.toml` reads it out of `src/gelpy/__init__.py`, so there is only one copy of it.
 

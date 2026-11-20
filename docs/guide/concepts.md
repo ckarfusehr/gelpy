@@ -15,7 +15,7 @@ subject:
   - src/gelpy/schemas/recipe.py
   - src/gelpy/schemas/run.py
   - src/gelpy/schemas/common.py
-subject_digest: 07460f4cd225a93f
+subject_digest: efad771451db22dd
 ---
 
 Two ideas carry the whole design. A **run folder** is the unit of work and the unit of sharing.
@@ -116,14 +116,15 @@ further.
 
 | stage | hash is computed from | cached artifact |
 |---|---|---|
-| `image` | source `sha256` + `channel_strategy` + `channel_index` + `inverted` + `page` + the gelpy version | `cache/image/<hash>.npy` |
+| `image` | source `sha256` + `channel_strategy` + `channel_index` + `inverted` + `page` + `geometry` + the gelpy version | `cache/image/<hash>.npy` |
 | `background` | `image_hash` + model name + **validated** params | `cache/background/<hash>.npz` |
 | `profile[lane]` | `background_hash` + that lane's `x_center_px` + `profile_width_px` | `cache/profiles/lane_NNN__<hash>.json` |
 | `fit[lane]` | `profile_hash` + the whole `LineProfileConfig` + the whole `FitConfig` | `cache/fits/lane_NNN__<hash>.json` |
 
-The four interpretation fields are exactly the inputs of `apply_image_meta`, the deterministic
-replay that turns file bytes into the canonical float64 array; the `sha256` pins *which* bytes.
-Nothing else in `ImageMeta` touches a pixel.
+The five interpretation fields are exactly the inputs of `apply_image_meta`, the deterministic
+replay that turns file bytes into the canonical float64 array the stages analyse: four read the
+pixels, and `geometry` orients and crops them (turn, flip, angle, crop box). The `sha256` pins
+*which* bytes. Nothing else in `ImageMeta` touches a pixel.
 
 Because every other hash chains off `image`, a new gelpy version recomputes every stage on first
 use and never reuses a cache an older version wrote.

@@ -26,6 +26,7 @@ from ..schemas.baseline import BaselineConfig
 from ..schemas.fit_config import FitConfig
 from ..schemas.profiles import LineProfileConfig
 from ..schemas.requests import (
+    CropImageRequest,
     DetectLanesRequest,
     ExtractProfilesRequest,
     FitConfigOverrides,
@@ -36,7 +37,9 @@ from ..schemas.requests import (
     LineProfileConfigOverrides,
     RefitLaneRequest,
     RemoveBackgroundRequest,
+    RenderGridRequest,
     RenderImageRequest,
+    RotateImageRequest,
     SetContrastRequest,
     SetImageRequest,
     SetLanesRequest,
@@ -83,7 +86,9 @@ app = typer.Typer(
 lanes_app = typer.Typer(help="Configure lane positions and labels.", no_args_is_help=True)
 contrast_app = typer.Typer(help="Configure display contrast.", no_args_is_help=True)
 background_app = typer.Typer(help="Configure and inspect background removal.", no_args_is_help=True)
-image_app = typer.Typer(help="Render gel images.", no_args_is_help=True)
+image_app = typer.Typer(
+    help="Render, re-interpret, orient and crop the gel image.", no_args_is_help=True
+)
 profiles_app = typer.Typer(help="Extract and plot line profiles.", no_args_is_help=True)
 fit_app = typer.Typer(help="Fit peaks to line profiles.", no_args_is_help=True)
 results_app = typer.Typer(help="Read assembled results.", no_args_is_help=True)
@@ -470,6 +475,54 @@ def image_set(
     """Re-interpret the source image (polarity/channel/page) of an existing run."""
     request = SetImageRequest(run_dir=run_dir, channel=channel, invert=invert, page=page, auto=auto)
     _io.emit(tools.run_tool("image_set", request), fmt)
+
+
+@image_app.command("rotate")
+@_io.handle_errors
+def image_rotate(
+    run_dir: str = typer.Argument(..., help="Existing run folder."),
+    turn: int = typer.Option(
+        0, help="Quarter turn in degrees, counter-clockwise: a multiple of 90 (-90 turns clockwise)."
+    ),
+    flip: bool = typer.Option(False, "--flip", help="Mirror left-right, after the turn."),
+    angle: float = typer.Option(
+        0.0, help="Fine rotation in degrees, counter-clockwise, at most 45 either way (bilinear)."
+    ),
+    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),
+):
+    """Orient the source image (turn, flip, fine angle); replaces the previous orientation."""
+    request = RotateImageRequest(run_dir=run_dir, turn=turn, flip=flip, angle=angle)
+    _io.emit(tools.run_tool("image_rotate", request), fmt)
+
+
+@image_app.command("crop")
+@_io.handle_errors
+def image_crop(
+    run_dir: str = typer.Argument(..., help="Existing run folder."),
+    box: Optional[tuple[int, int, int, int]] = typer.Option(
+        None,
+        help="x0 y0 x1 y1 — the box in pixels of the oriented image (as `image grid` labels "
+        "them), x1 and y1 one past the last column and row kept. Without --box the crop is removed.",
+    ),
+    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),
+):
+    """Crop the oriented image to a box, or remove the crop."""
+    request = CropImageRequest(run_dir=run_dir, box=box)
+    _io.emit(tools.run_tool("image_crop", request), fmt)
+
+
+@image_app.command("grid")
+@_io.handle_errors
+def image_grid(
+    run_dir: str = typer.Argument(..., help="Existing run folder."),
+    step: Optional[int] = typer.Option(
+        None, help="Pixels between grid lines; default about ten lines along the longer side."
+    ),
+    fmt: str = typer.Option("json", "--format", help="Output format: json|text."),
+):
+    """Render the oriented image with a labelled pixel grid and the crop box (render/grid.png)."""
+    request = RenderGridRequest(run_dir=run_dir, step=step)
+    _io.emit(tools.run_tool("image_grid", request), fmt)
 
 
 # --- profiles ----------------------------------------------------------------

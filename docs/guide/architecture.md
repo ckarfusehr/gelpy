@@ -8,7 +8,7 @@ subject:
   - src/gelpy/render/html_report.py
   - src/gelpy/runfolder/commands.py
   - src/gelpy/runfolder/lock.py
-subject_digest: 5f6f86988cd3e68c
+subject_digest: de5edc24c5818cb3
 ---
 
 `src/gelpy/` holds five layers and one rule. The rule is that imports only ever point
@@ -123,13 +123,13 @@ report ([html-report.md](html-report.md)) from a `ReportContent` and the bytes o
 `cli/_render.py` collects. Which folder a report may be written into is `runfolder/`'s business
 (`report_folder.py`: the marker that says a folder is the report's), not the renderer's.
 
-**`cli/` is an adapter.** Twenty commands; thirteen of them build one request, run the tool of
+**`cli/` is an adapter.** Twenty-three commands; sixteen of them build one request, run the tool of
 the same step and emit its result as JSON (`results show` also offers `--format csv|table`,
 which format the same result themselves). The tool is where `lanes detect` calls
 `run_lane_detection` and draws the overlay from its outcome, and where `fit run` writes the
 report, so the typer command only parses argv and builds the request. `background show` is pure
-rendering and `lanes pick` waits for clicks: neither is a tool, and `image_render` calls no
-command function at all.
+rendering and `lanes pick` waits for clicks: neither is a tool, and `image_render` and
+`image_grid` call no command function at all.
 `schema`, `models list` and `tool list` touch no run folder, and `tool call` runs any tool from
 one JSON object. `mcp` serves every tool over stdio:
 [`cli/mcp_server.py`](../../src/gelpy/cli/mcp_server.py) advertises the registry's tools and

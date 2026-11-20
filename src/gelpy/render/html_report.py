@@ -366,6 +366,7 @@ def _provenance(c: ReportContent) -> str:
             f"channel {m.channel_strategy}, polarity {m.polarity} "
             f"({m.polarity_source}, confidence {m.polarity_confidence})",
         ),
+        ("geometry", _geometry_words(m.geometry)),
         ("lanes", f"{len(r.lanes.lanes)}, profile width {r.lanes.profile_width_px} px"),
         ("display contrast", contrast),
         ("background", background),
@@ -391,3 +392,16 @@ def _provenance(c: ReportContent) -> str:
             '<p class="note">Full configuration: fit_config.json</p>',
         ]
     return "\n".join(out)
+
+
+def _geometry_words(g) -> str:
+    """The image geometry in words: what was turned, mirrored, rotated and cropped."""
+    if g.is_identity():
+        return "none (the image as decoded)"
+    words = [
+        *([f"turned {g.turn} degrees counter-clockwise"] if g.turn else []),
+        *(["mirrored left-right"] if g.flip else []),
+        *([f"rotated {g.angle:g} degrees counter-clockwise (bilinear)"] if g.angle else []),
+        *([f"cropped to [{', '.join(str(v) for v in g.crop)}]"] if g.crop is not None else []),
+    ]
+    return ", ".join(words)

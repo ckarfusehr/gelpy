@@ -21,6 +21,16 @@ polarity is low-confidence, look at the raw view before anything else: bands mus
 they are dark on light, set the polarity explicitly (`invert`) and look again. For a multi-page
 source, check that the page in use is the one you want.
 
+## Orient and crop before placing lanes
+
+Look at the image with its pixel coordinates first. Orient it so the wells are at the top and the
+lanes run straight down: a quarter turn when the gel lies on its side, a mirror when the lane
+order reads backwards, a fine angle of a few degrees when the row of wells is tilted. Then crop
+away the empty margin around the gel: keep the gel's top, left and right edges, and a short margin
+below the lowest band, not more; leave out the corners a fine angle fills from outside the source.
+Check the box on the coordinates again. Orienting or cropping places the lanes evenly anew, so do
+it before the lanes are detected.
+
 ## The one rule: verify lane positions against the image
 
 Gels are cropped differently every time, so pixel positions never transfer between images, and

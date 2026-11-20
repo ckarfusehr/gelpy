@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from .common import CanonicalModel
-from .image import ImageRef
+from .image import ImageGeometry, ImageRef
 from .report import ReportStatus
 
 
@@ -107,6 +107,21 @@ class RunStatus(CanonicalModel):
     )
     image_width: int = Field(gt=0, description="Source image width (px).")
     image_height: int = Field(gt=0, description="Source image height (px).")
+    geometry: ImageGeometry = Field(
+        default_factory=ImageGeometry,
+        description="Orientation and crop of the source image (`image rotate`, `image crop`).",
+    )
+    analysis_width: int | None = Field(
+        default=None,
+        gt=0,
+        description="Width (px) of the image the stages analyse: the source after its geometry. "
+        "Lane positions are in its pixels. `status` always sets it.",
+    )
+    analysis_height: int | None = Field(
+        default=None,
+        gt=0,
+        description="Height (px) of the image the stages analyse. `status` always sets it.",
+    )
     background: str | None = Field(
         default=None, description="Configured background model name, or null if none."
     )

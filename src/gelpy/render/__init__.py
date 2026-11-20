@@ -11,7 +11,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-from .images import render_gel_image  # noqa: E402
+from .images import render_gel_image, render_grid  # noqa: E402
 from .lanes import render_lane_detection  # noqa: E402
 from .profiles import render_profiles_overview  # noqa: E402
 from .fits import render_lane_fit  # noqa: E402
@@ -20,6 +20,7 @@ from .report import render_report  # noqa: E402
 
 __all__ = [
     "render_gel_image",
+    "render_grid",
     "render_lane_detection",
     "render_profiles_overview",
     "render_lane_fit",

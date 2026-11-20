@@ -85,22 +85,35 @@ class Pipeline:
         return sorted(self._reused)
 
     # --- stages --------------------------------------------------------------
-    def ensure_image(self) -> np.ndarray:
-        if self._image is not None:
-            return self._image
-        h = stages.image_hash(self.recipe)
-        path = self.paths.image_cache(h)
-        # The recipe's recorded sha256 is the source of truth for the image identity
-        # and feeds every downstream hash. If the file on disk has genuinely changed
-        # bytes, caching the new pixels under the old recipe hash would make the whole
-        # chain incoherent (and risk a false hit if the file later reverts) — so we
-        # surface it instead. The (path,size,mtime) fingerprint is a cheap pre-check
-        # that avoids re-hashing an unchanged file.
+    def _source(self) -> Path:
+        """The source image file, refused when it is not the image the recipe records.
+
+        The recipe's recorded sha256 is the source of truth for the image identity
+        and feeds every downstream hash. If the file on disk has genuinely changed
+        bytes, caching the new pixels under the old recipe hash would make the whole
+        chain incoherent (and risk a false hit if the file later reverts) — so we
+        surface it instead. The (path,size,mtime) fingerprint is a cheap pre-check
+        that avoids re-hashing an unchanged file."""
         source = self.paths.resolve(self.recipe.source_image.path)
         if not source_unchanged(self.recipe.source_image, source):
             require_source(self.recipe.source_image, source)
             fresh = build_image_ref(source)
             require_unchanged(self.recipe.source_image, source, fresh.sha256)
+        return source
+
+    def oriented_image(self) -> np.ndarray:
+        """The source as the recipe reads it, oriented but not cropped: the frame a crop box is
+        given in, which ``image grid`` shows. Computed on demand, not cached."""
+        meta = self.recipe.image
+        uncropped = meta.geometry.model_copy(update={"crop": None})
+        return apply_image_meta(str(self._source()), meta.model_copy(update={"geometry": uncropped}))
+
+    def ensure_image(self) -> np.ndarray:
+        if self._image is not None:
+            return self._image
+        h = stages.image_hash(self.recipe)
+        path = self.paths.image_cache(h)
+        source = self._source()
         existed = path.exists()
         arr = get_or_compute_npy(path, lambda: apply_image_meta(str(source), self.recipe.image))
         self._mark(stage_key(StageName.IMAGE), recomputed=not existed)

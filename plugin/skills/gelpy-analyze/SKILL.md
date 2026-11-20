@@ -33,6 +33,9 @@ command or tool does each step.
 | create the run | `gelpy init RUN IMAGE --n-lanes N --labels-file F` | `init` |
 | read its state | `gelpy status RUN` | `status` |
 | set polarity, channel or page | `gelpy image set RUN --invert` | `image_set` |
+| look at the image with pixel coordinates | `gelpy image grid RUN` | `image_grid` |
+| orient the image (quarter turn, mirror, fine angle) | `gelpy image rotate RUN --turn -90 --angle 1.5` | `image_rotate` |
+| crop the empty margin | `gelpy image crop RUN --box 40 20 1980 1150` | `image_crop` |
 | detect lanes, render the overlay | `gelpy lanes detect RUN --n-lanes N --apply` | `lanes_detect` |
 | set lanes, labels or width | `gelpy lanes set RUN --endpoints LEFT RIGHT --n-lanes N` | `lanes_set` |
 | set the display contrast | `gelpy contrast set RUN --gamma 0.2` | `contrast_set` |

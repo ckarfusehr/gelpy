@@ -8,7 +8,7 @@ bug.
 """
 
 from .common import CanonicalModel, ErrorResponse
-from .image import ImageMeta, ImageRef
+from .image import ImageGeometry, ImageMeta, ImageRef
 from .lanes import (
     LaneDefinition,
     LaneDetectionResult,
@@ -33,6 +33,7 @@ from .peaks import (
 from .fit_config import FitConfig, FitConfigStore, PerLaneFitConfig, PriorConfig
 from .recipe import Recipe
 from .requests import (
+    CropImageRequest,
     DetectLanesRequest,
     ExtractProfilesRequest,
     FitConfigOverrides,
@@ -44,8 +45,10 @@ from .requests import (
     LineProfileConfigOverrides,
     RefitLaneRequest,
     RemoveBackgroundRequest,
+    RenderGridRequest,
     RenderImageRequest,
     RequestModel,
+    RotateImageRequest,
     SetContrastRequest,
     SetImageRequest,
     SetLanesRequest,
@@ -64,8 +67,12 @@ from .tools import (
 )
 
 __all__ = [
+    "RotateImageRequest",
+    "RenderGridRequest",
+    "CropImageRequest",
     "CanonicalModel",
     "ErrorResponse",
+    "ImageGeometry",
     "ImageMeta",
     "ImageRef",
     "LaneDefinition",

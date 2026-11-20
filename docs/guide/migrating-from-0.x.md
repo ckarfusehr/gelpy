@@ -5,7 +5,7 @@ summary: What each Gel-object method became, why the peak-tuning arguments have 
 subject:
   - src/gelpy/cli/app.py
   - src/gelpy/schemas/results.py
-subject_digest: a505cc9b7bb84777
+subject_digest: 3f1e8d09f9cc9c9b
 ---
 
 ## Read this first

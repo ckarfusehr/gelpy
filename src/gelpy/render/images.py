@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import matplotlib.patches as patches
@@ -83,4 +84,67 @@ def render_gel_image(
         ax.set_xticklabels([plain_text(label) for label in layout.labels()], rotation=layout.label_rotation)
         ax.xaxis.set_ticks_position("top")
 
+    return save_figure(fig, out_path, bbox_inches="tight", dpi=300)
+
+
+def grid_step(extent: int) -> int:
+    """A round grid step (1, 2 or 5 times a power of ten) giving about ten lines over ``extent``."""
+    magnitude = 10 ** max(0, math.floor(math.log10(max(extent, 1) / 10)))
+    return min((m * magnitude for m in (1, 2, 5, 10)), key=lambda s: abs(extent / s - 10))
+
+
+def render_grid(
+    image: np.ndarray,
+    out_path: str | Path,
+    *,
+    contrast: ContrastConfig | None = None,
+    crop: tuple[int, int, int, int] | None = None,
+    outside: np.ndarray | None = None,
+    step: int | None = None,
+) -> Path:
+    """Save the oriented image with a labelled pixel grid: the frame a crop box is given in.
+
+    Grid lines every ``step`` pixels (default ``grid_step``), labelled on all four sides; the
+    crop box outlined in orange with the area outside it dimmed; the pixels ``outside`` marks
+    (the corners a fine rotation fills from outside the source) tinted blue. The display contrast
+    is the recipe's non-linear one, as in the default gel view.
+    """
+    height, width = image.shape
+    step = step or grid_step(max(height, width))
+    disp = _adjust(image, contrast, "non_linear")
+    fig_width = cm_to_inch(18)
+    fig_height = min(max(fig_width * height / width, cm_to_inch(6)), cm_to_inch(30))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    ax.imshow(disp, cmap="gray")
+    if outside is not None and outside.any():
+        tint = np.zeros((height, width, 4), dtype=np.uint8)
+        tint[outside] = (40, 110, 255, 120)
+        ax.imshow(tint)
+    if crop is not None:
+        x0, y0, x1, y1 = crop
+        shade = {"facecolor": (0, 0, 0, 0.5), "edgecolor": "none"}
+        for x, y, w, h in (
+            (-0.5, -0.5, width, y0),  # above
+            (-0.5, y1 - 0.5, width, height - y1),  # below
+            (-0.5, y0 - 0.5, x0, y1 - y0),  # left
+            (x1 - 0.5, y0 - 0.5, width - x1, y1 - y0),  # right
+        ):
+            if w > 0 and h > 0:
+                ax.add_patch(patches.Rectangle((x, y), w, h, **shade))
+        ax.add_patch(
+            patches.Rectangle(
+                (x0 - 0.5, y0 - 0.5), x1 - x0, y1 - y0, fill=False, edgecolor="orange", linewidth=1.0
+            )
+        )
+    ax.set_xticks(np.arange(0, width, step))
+    ax.set_yticks(np.arange(0, height, step))
+    ax.grid(color="cyan", alpha=0.45, linewidth=0.4)
+    ax.tick_params(
+        labelsize=5, top=True, right=True, labeltop=True, labelright=True, length=2, width=0.4
+    )
+    ax.tick_params(axis="x", labelrotation=90)
+    ax.set_xlim(-0.5, width - 0.5)
+    ax.set_ylim(height - 0.5, -0.5)
+    box = f"crop [{', '.join(str(v) for v in crop)}]" if crop is not None else "no crop"
+    ax.set_title(f"oriented image {width} x {height} px, {box}, grid every {step} px", fontsize=6)
     return save_figure(fig, out_path, bbox_inches="tight", dpi=300)

@@ -11,7 +11,7 @@ subject:
   - src/gelpy/render/report.py
   - src/gelpy/render/_figure.py
   - src/gelpy/cli/_render.py
-subject_digest: b30d791b0d3dd7b3
+subject_digest: 830447c687670e7b
 ---
 
 No gelpy renderer writes a result or changes a number, so re-rendering is always safe. It is
@@ -84,6 +84,19 @@ reads as true black is at or below zero, not merely dim. Inspect those excursion
 
 Which array and which contrast each `--kind` selects is
 [image-input.md](image-input.md#display-contrast-is-display-only)'s subject, not this page's.
+
+## `render/grid.png` -- the frame for orienting and cropping
+
+`gelpy image grid` draws the oriented image before its crop: the source after the quarter turn,
+the mirror and the fine angle, under the recipe's gamma, with a cyan pixel grid labelled on all
+four sides (a round step, about ten lines along the longer side; `--step` sets it). Its numbers
+are the coordinates `image crop --box` takes. The current crop box is outlined in orange and the
+area outside it dimmed; the corners a fine angle fills from outside the source are tinted blue.
+The title gives the oriented size, the box and the step.
+
+```bash
+gelpy image grid "$RUN"
+```
 
 ## `render/lane_detect.png` -- did the grid land on the lanes
 
